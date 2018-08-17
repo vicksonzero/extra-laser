@@ -1,0 +1,14 @@
+#OSX
+#-------------------------------------------------------------------------------
+.DS_STORE
+
+
+#General
+#-------------------------------------------------------------------------------
+build
+node_modules
+*.tsx
+incoming/*
+src/games
+cheatsheets
+phaser3-typescript-master.zip
