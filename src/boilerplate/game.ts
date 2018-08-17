@@ -13,12 +13,11 @@ const config: GameConfig = {
     parent: "game",
     scene: MainScene,
     physics: {
-        default: "arcade",
-        debug: true,
-        arcade: {
-            gravity: { y: 0 }
+        default: "matter",
+        matter: {
+            debug: true
         }
-    }
+    },
 };
 
 // game class

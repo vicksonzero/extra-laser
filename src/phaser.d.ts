@@ -44088,62 +44088,62 @@ declare namespace Phaser {
                  * [description]
                  * @param value [description]
                  */
-                setBounce(value: number): Phaser.GameObjects.GameObject;
+                setBounce(value: number): this;
 
                 /**
                  * [description]
                  * @param value Unique category bitfield.
                  */
-                setCollisionCategory(value: number): Phaser.GameObjects.GameObject;
+                setCollisionCategory(value: number): this;
 
                 /**
                  * [description]
                  * @param value Unique group index.
                  */
-                setCollisionGroup(value: number): Phaser.GameObjects.GameObject;
+                setCollisionGroup(value: number): this;
 
                 /**
                  * [description]
                  * @param categories A unique category bitfield, or an array of them.
                  */
-                setCollidesWith(categories: number | number[]): Phaser.GameObjects.GameObject;
+                setCollidesWith(categories: number | number[]): this;
 
                 /**
                  * [description]
                  * @param force [description]
                  */
-                applyForce(force: Phaser.Math.Vector2): Phaser.GameObjects.GameObject;
+                applyForce(force: Phaser.Math.Vector2): this;
 
                 /**
                  * [description]
                  * @param position [description]
                  * @param force [description]
                  */
-                applyForceFrom(position: Phaser.Math.Vector2, force: Phaser.Math.Vector2): Phaser.GameObjects.GameObject;
+                applyForceFrom(position: Phaser.Math.Vector2, force: Phaser.Math.Vector2): this;
 
                 /**
                  * [description]
                  * @param speed [description]
                  */
-                thrust(speed: number): Phaser.GameObjects.GameObject;
+                thrust(speed: number): this;
 
                 /**
                  * [description]
                  * @param speed [description]
                  */
-                thrustLeft(speed: number): Phaser.GameObjects.GameObject;
+                thrustLeft(speed: number): this;
 
                 /**
                  * [description]
                  * @param speed [description]
                  */
-                thrustRight(speed: number): Phaser.GameObjects.GameObject;
+                thrustRight(speed: number): this;
 
                 /**
                  * [description]
                  * @param speed [description]
                  */
-                thrustBack(speed: number): Phaser.GameObjects.GameObject;
+                thrustBack(speed: number): this;
 
                 /**
                  * [description]
@@ -44151,37 +44151,37 @@ declare namespace Phaser {
                  * @param air [description]
                  * @param fstatic [description]
                  */
-                setFriction(value: number, air?: number, fstatic?: number): Phaser.GameObjects.GameObject;
+                setFriction(value: number, air?: number, fstatic?: number): this;
 
                 /**
                  * [description]
                  * @param value [description]
                  */
-                setFrictionAir(value: number): Phaser.GameObjects.GameObject;
+                setFrictionAir(value: number): this;
 
                 /**
                  * [description]
                  * @param value [description]
                  */
-                setFrictionStatic(value: number): Phaser.GameObjects.GameObject;
+                setFrictionStatic(value: number): this;
 
                 /**
                  * [description]
                  * @param value [description]
                  */
-                setIgnoreGravity(value: boolean): Phaser.GameObjects.GameObject;
+                setIgnoreGravity(value: boolean): this;
 
                 /**
                  * [description]
                  * @param value [description]
                  */
-                setMass(value: number): Phaser.GameObjects.GameObject;
+                setMass(value: number): this;
 
                 /**
                  * [description]
                  * @param value [description]
                  */
-                setDensity(value: number): Phaser.GameObjects.GameObject;
+                setDensity(value: number): this;
 
                 /**
                  * The body's center of mass.
@@ -44192,7 +44192,7 @@ declare namespace Phaser {
                  * [description]
                  * @param value [description]
                  */
-                setSensor(value: boolean): Phaser.GameObjects.GameObject;
+                setSensor(value: boolean): this;
 
                 /**
                  * [description]
@@ -44205,14 +44205,14 @@ declare namespace Phaser {
                  * @param height [description]
                  * @param options [description]
                  */
-                setRectangle(width: number, height: number, options: object): Phaser.GameObjects.GameObject;
+                setRectangle(width: number, height: number, options: object): this;
 
                 /**
                  * [description]
                  * @param radius [description]
                  * @param options [description]
                  */
-                setCircle(radius: number, options: object): Phaser.GameObjects.GameObject;
+                setCircle(radius: number, options: object): this;
 
                 /**
                  * [description]
@@ -44220,7 +44220,7 @@ declare namespace Phaser {
                  * @param sides [description]
                  * @param options [description]
                  */
-                setPolygon(radius: number, sides: number, options: object): Phaser.GameObjects.GameObject;
+                setPolygon(radius: number, sides: number, options: object): this;
 
                 /**
                  * [description]
@@ -44229,52 +44229,52 @@ declare namespace Phaser {
                  * @param slope [description]
                  * @param options [description]
                  */
-                setTrapezoid(width: number, height: number, slope: number, options: object): Phaser.GameObjects.GameObject;
+                setTrapezoid(width: number, height: number, slope: number, options: object): this;
 
                 /**
                  * [description]
                  * @param body [description]
                  * @param addToWorld [description] Default true.
                  */
-                setExistingBody(body: MatterJS.Body, addToWorld?: boolean): Phaser.GameObjects.GameObject;
+                setExistingBody(body: MatterJS.Body, addToWorld?: boolean): this;
 
                 /**
                  * [description]
                  * @param config [description]
                  * @param options [description]
                  */
-                setBody(config: object, options: object): Phaser.GameObjects.GameObject;
+                setBody(config: object, options: object): this;
 
                 /**
                  * [description]
                  * @param value [description] Default 60.
                  */
-                setSleepThreshold(value?: number): Phaser.GameObjects.GameObject;
+                setSleepThreshold(value?: number): this;
 
                 /**
                  * [description]
                  * @param start [description]
                  * @param end [description]
                  */
-                setSleepEvents(start: boolean, end: boolean): Phaser.GameObjects.GameObject;
+                setSleepEvents(start: boolean, end: boolean): this;
 
                 /**
                  * [description]
                  * @param value [description]
                  */
-                setSleepStartEvent(value: boolean): Phaser.GameObjects.GameObject;
+                setSleepStartEvent(value: boolean): this;
 
                 /**
                  * [description]
                  * @param value [description]
                  */
-                setSleepEndEvent(value: boolean): Phaser.GameObjects.GameObject;
+                setSleepEndEvent(value: boolean): this;
 
                 /**
                  * [description]
                  * @param value [description]
                  */
-                setStatic(value: boolean): Phaser.GameObjects.GameObject;
+                setStatic(value: boolean): this;
 
                 /**
                  * [description]
@@ -44284,32 +44284,32 @@ declare namespace Phaser {
                 /**
                  * [description]
                  */
-                setFixedRotation(): Phaser.GameObjects.GameObject;
+                setFixedRotation(): this;
 
                 /**
                  * [description]
                  * @param value [description]
                  */
-                setAngularVelocity(value: number): Phaser.GameObjects.GameObject;
+                setAngularVelocity(value: number): this;
 
                 /**
                  * [description]
                  * @param x [description]
                  */
-                setVelocityX(x: number): Phaser.GameObjects.GameObject;
+                setVelocityX(x: number): this;
 
                 /**
                  * [description]
                  * @param y [description]
                  */
-                setVelocityY(y: number): Phaser.GameObjects.GameObject;
+                setVelocityY(y: number): this;
 
                 /**
                  * [description]
                  * @param x [description]
                  * @param y [description] Default x.
                  */
-                setVelocity(x: number, y?: number): Phaser.GameObjects.GameObject;
+                setVelocity(x: number, y?: number): this;
 
             }
 
