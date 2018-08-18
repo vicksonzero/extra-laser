@@ -93,6 +93,7 @@ export class MainScene extends Phaser.Scene {
     preload(): void {
         this.load.atlasXML('spaceshooter', './assets/kenney/sheet.png', './assets/kenney/sheet.xml');
         this.load.atlasXML('spaceshooterExt', './assets/kenney/spaceShooter2_spritesheet.png', './assets/kenney/spaceShooter2_spritesheet.xml');
+        this.load.spritesheet('explosion1', './assets/explosion/spritesheet8.png', { frameWidth: 130, spacing: 0, margin: 0, endFrame: 24 });
     }
 
     create(): void {
@@ -257,7 +258,10 @@ export class MainScene extends Phaser.Scene {
 
             if (enemy.hp <= 0) {
                 if (enemy.undoTintEvent) enemy.undoTintEvent.destroy();
+                this.makeExplosion1(enemy.x, enemy.y);
                 enemy.destroy();
+                this.cameras.main.shake(50, 0.005, false);
+
                 this.enemyList.splice(this.enemyList.indexOf(enemy), 1);
             }
         }
@@ -280,12 +284,13 @@ export class MainScene extends Phaser.Scene {
 
 
     private spawnStar(x: number, y: number) {
-        const star: Star = this.matter.add.sprite(x, y, "spaceshooter", 'star2');
+        const depth = Phaser.Math.FloatBetween(0, 0.2);
+        const star: Star = this.matter.add.sprite(x, y, "spaceshooter", 'star1');
         star.setName('star');
         star.setTint(0xCCCCCC);
         star
             .setOrigin(0.5, 0.5)
-            .setScale(Phaser.Math.FloatBetween(0.1, 0.3))
+            .setScale(0.1 + depth)
             .setAngle(Phaser.Math.Between(0, 360))
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             .setFrictionAir(0)
@@ -295,7 +300,7 @@ export class MainScene extends Phaser.Scene {
             .setCollidesWith(0)
             ;
 
-        star.setVelocity(0, 0.4);
+        star.setVelocity(0, 0.3 + depth * 0.2);
         this.time.addEvent({
             delay: 60 * 1000, loop: false, callback: () => {
                 star.destroy();
@@ -415,6 +420,47 @@ export class MainScene extends Phaser.Scene {
         }
 
         return spark
+    }
+
+
+    private makeExplosion1(
+        x: number, y: number,
+    ): Effect {
+        const explosion: Effect = this.add.sprite(
+            x, y,
+            'explosion1'
+        );
+
+        var config = {
+            key: 'explode',
+            frames: this.anims.generateFrameNumbers('explosion1', { start: 0, end: 23 }),
+            frameRate: 60
+        };
+        this.anims.create(config);
+        explosion.anims.play('explode');
+
+        explosion.setName('explosion');
+
+        // const color = Phaser.Display.Color.HSLToColor(Phaser.Math.FloatBetween(0, 1), 1, 0.9).color;
+        (explosion
+            .setOrigin(0.5, 0.4)
+            .setScale(this.bulletScale)
+            .setScaleMode(Phaser.ScaleModes.NEAREST)
+            // .setTint(color)
+        );
+
+        explosion.birthdayEvent = this.time.addEvent({
+            delay: 500, loop: false, callback: () => {
+                destroySpark();
+            }
+        });
+
+        const destroySpark = () => {
+            explosion.birthdayEvent.destroy();
+            explosion.destroy();
+        }
+
+        return explosion;
     }
 
     private registerCollisionEvents(): void {
