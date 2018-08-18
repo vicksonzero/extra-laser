@@ -163,6 +163,23 @@ export class MainScene extends Phaser.Scene {
         this.registerKeyboard();
         this.registerMouse();
         this.registerCollisionEvents();
+
+
+        const tutorial = this.add.text((+this.sys.game.config.width) / 2, (+this.sys.game.config.height) / 2,
+            `Extra Laser\n` +
+            `\n`+
+            `How to play:\n`+
+            `Touch / Mouse / WASD`
+            , { color: '#FFFFFF', align: 'center' });
+        tutorial.setOrigin(0.5);
+
+        var tween = this.tweens.add({
+            targets: tutorial,
+            alpha: 0,
+            ease: 'Power1',
+            duration: 3000,
+            delay: 5000,
+        });
     }
 
     update(time: number, delta: number): void {
@@ -403,7 +420,7 @@ export class MainScene extends Phaser.Scene {
         const color = Phaser.Display.Color.HSLToColor(Phaser.Math.FloatBetween(0, 1), 1, 0.9).color;
         (spark
             .setOrigin(0.5, 0.5)
-            .setScale(this.bulletScale*2)
+            .setScale(this.bulletScale * 2)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             .setTint(color)
         );
