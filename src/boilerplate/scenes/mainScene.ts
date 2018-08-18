@@ -260,7 +260,7 @@ export class MainScene extends Phaser.Scene {
                 if (enemy.undoTintEvent) enemy.undoTintEvent.destroy();
                 this.makeExplosion1(enemy.x, enemy.y);
                 enemy.destroy();
-                this.cameras.main.shake(50, 0.005, false);
+                this.cameras.main.shake(50, 0.01, false);
 
                 this.enemyList.splice(this.enemyList.indexOf(enemy), 1);
             }
@@ -403,7 +403,7 @@ export class MainScene extends Phaser.Scene {
         const color = Phaser.Display.Color.HSLToColor(Phaser.Math.FloatBetween(0, 1), 1, 0.9).color;
         (spark
             .setOrigin(0.5, 0.5)
-            .setScale(this.bulletScale)
+            .setScale(this.bulletScale*2)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             .setTint(color)
         );
