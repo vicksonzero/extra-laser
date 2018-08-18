@@ -12,9 +12,18 @@ interface Plane extends Phaser.Physics.Matter.Sprite {
     followingMouse?: boolean;
 }
 
+enum collisionCategory {
+    WORLD = 1,
+    PLAYER = 2,
+    PLAYER_BULLET = 4,
+    ENEMY = 8,
+    ENEMY_BULL = 8,
+
+}
+
 export class MainScene extends Phaser.Scene {
 
-    private topSpeed: number = 250;
+    private topSpeed: number = 15;
     private accel: number = 7 * 2;
     private mass = 3000;
     private drag: number = 0.2;
@@ -42,16 +51,22 @@ export class MainScene extends Phaser.Scene {
     }
 
     create(): void {
-        this.matter.world.setBounds(0, 0, +this.sys.game.config.width, +this.sys.game.config.height);
+        window['scene'] = this;
+        this.matter.world
+            .setBounds(0, 0, +this.sys.game.config.width, +this.sys.game.config.height)
+            .disableGravity()
+            ;
         this.plane = this.matter.add.sprite(150, 300, "spaceshooter", 'playerShip1_blue');
         this.plane
             .setOrigin(0.5, 0.5)
             .setScale(0.5, 0.5)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
-            .setIgnoreGravity(true)
             .setMass(this.mass / 4)
             .setFrictionAir(this.drag)
             .setFixedRotation()
+            .setCollisionCategory(collisionCategory.PLAYER)
+            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
+            ;
 
         const wing1 = this.matter.add.sprite(50, 300, "spaceshooter", 'playerShip2_blue');
         this.wingMen.push(wing1);
@@ -59,10 +74,12 @@ export class MainScene extends Phaser.Scene {
             .setOrigin(0.5, 0.5)
             .setScale(0.3, 0.3)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
-            .setIgnoreGravity(true)
             .setMass(this.mass / 4)
             .setFrictionAir(this.drag)
             .setFixedRotation()
+            .setCollisionCategory(collisionCategory.PLAYER)
+            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
+            ;
 
         this.matter.add.joint(this.plane, wing1, 0, 1, {
             pointA: { x: -50, y: 0 },
@@ -74,10 +91,11 @@ export class MainScene extends Phaser.Scene {
             .setOrigin(0.5, 0.5)
             .setScale(0.3, 0.3)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
-            .setIgnoreGravity(true)
             .setMass(this.mass)
             .setFrictionAir(this.drag)
             .setFixedRotation()
+            .setCollisionCategory(collisionCategory.PLAYER)
+            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
 
         this.matter.add.joint(this.plane, wing2, 0, 1, {
             pointA: { x: 50, y: 0 },
@@ -90,6 +108,7 @@ export class MainScene extends Phaser.Scene {
     }
 
     update(time, delta: number): void {
+        const MATTER_STEP = 16.666;
 
         // Enables movement of player with WASD keys
         if (this.moveKeys.up.isDown) {
@@ -105,14 +124,21 @@ export class MainScene extends Phaser.Scene {
             this.plane.applyForce(new Phaser.Math.Vector2(this.accel, 0));
         }
 
-        // if (this.plane.followingMouse) {
-        //     const dist = Phaser.Math.Distance.Between(this.plane.x, this.plane.y, this.plane.mouseTarget.x, this.plane.mouseTarget.y);
-        //     if (dist > this.topSpeed * delta / 1000) {
-        //         this.physics.moveTo(this.plane, this.plane.mouseTarget.x, this.plane.mouseTarget.y, this.topSpeed);
-        //     } else {
-        //         this.plane.setPosition(this.plane.mouseTarget.x, this.plane.mouseTarget.y);
-        //     }
-        // }
+        if (this.plane.followingMouse) {
+            const dist = Phaser.Math.Distance.Between(this.plane.x, this.plane.y, this.plane.mouseTarget.x, this.plane.mouseTarget.y);
+            const physicsDelta = this.matter.world.getDelta(time, delta);
+            console.log(dist, this.topSpeed * physicsDelta / 100 * 1.1);
+
+            if (dist > this.topSpeed * physicsDelta / 100 * 1.1) {
+                // this.matter.moveTo(this.plane, this.plane.mouseTarget.x, this.plane.mouseTarget.y, this.topSpeed);
+                const playerPos = new Phaser.Math.Vector2(this.plane.x, this.plane.y);
+                const direction = new Phaser.Math.Vector2(this.plane.mouseTarget.x, this.plane.mouseTarget.y).subtract(playerPos);
+                direction.scale(this.topSpeed / direction.length());
+                this.plane.setVelocity(direction.x, direction.y);
+            } else {
+                this.plane.setPosition(this.plane.mouseTarget.x, this.plane.mouseTarget.y);
+            }
+        }
         // Constrain velocity of player
         // this.constrainVelocity(this.plane, this.topSpeed);
 
@@ -126,14 +152,14 @@ export class MainScene extends Phaser.Scene {
             .setScale(0.5, 0.5)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             .setVelocity(0, -20)
-            .setIgnoreGravity(true)
             .setFixedRotation()
+            .setCollisionCategory(collisionCategory.PLAYER_BULLET)
+            .setCollidesWith(collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
         );
         this.time.addEvent({
             delay: 1000, loop: false, callback: () => {
                 bullet.destroy();
                 this.bullets.splice(this.bullets.indexOf(bullet), 1)
-                console.log(this.bullets);
 
             }
         });
@@ -152,8 +178,9 @@ export class MainScene extends Phaser.Scene {
             .setScale(0.5, 0.5)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             .setVelocity(0 + gunAngle.x, -20 + gunAngle.y)
-            .setIgnoreGravity(true)
             .setFixedRotation()
+            .setCollisionCategory(collisionCategory.PLAYER_BULLET)
+            .setCollidesWith(collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
         );
         this.time.addEvent({
             delay: 1000, loop: false, callback: () => {
@@ -169,8 +196,9 @@ export class MainScene extends Phaser.Scene {
             .setScale(0.5, 0.5)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             .setVelocity(0 - gunAngle.x, -20 + gunAngle.y)
-            .setIgnoreGravity(true)
             .setFixedRotation()
+            .setCollisionCategory(collisionCategory.PLAYER_BULLET)
+            .setCollidesWith(collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
         );
         this.time.addEvent({
             delay: 1000, loop: false, callback: () => {
@@ -242,10 +270,5 @@ export class MainScene extends Phaser.Scene {
         this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
             this.plane.followingMouse = false;
         });
-        // this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-        //     // cursor.setVisible(true).setPosition(pointer.x, pointer.y);
-        //     // this.physics.moveToObject(this.plane, pointer, 240);
-        // });
-
     }
 }
