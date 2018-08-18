@@ -12,7 +12,13 @@ interface Plane extends Phaser.Physics.Matter.Sprite {
     followingMouse?: boolean;
 }
 interface PlayerBullet extends Phaser.Physics.Matter.Sprite {
-    onHitEnemy?: (enemy: Enemy) => void;
+    onHitEnemy?: (enemy: Enemy, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+    birthdayEvent?: Phaser.Time.TimerEvent;
+}
+interface Effect extends Phaser.GameObjects.Sprite {
+    birthdayEvent?: Phaser.Time.TimerEvent;
+}
+interface Star extends Phaser.Physics.Matter.Sprite {
     birthdayEvent?: Phaser.Time.TimerEvent;
 }
 
@@ -20,6 +26,8 @@ interface Enemy extends Phaser.Physics.Matter.Sprite {
     hp?: number;
     maxHp?: number;
     takeDamage?: (amount: number) => void;
+    tintFill?: boolean;
+    undoTintEvent?: Phaser.Time.TimerEvent;
 }
 
 enum collisionCategory {
@@ -28,7 +36,9 @@ enum collisionCategory {
     PLAYER_BULLET = 1 << 2,
     ENEMY = 1 << 3,
     ENEMY_BULL = 1 << 4,
+    STAR = 1 << 5,
 }
+
 
 export class MainScene extends Phaser.Scene {
 
@@ -37,6 +47,11 @@ export class MainScene extends Phaser.Scene {
     private accel: number = 7 * 2;
     private mass = 3000;
     private drag: number = 0.2;
+    private playerBulletRapid = 150;
+
+    private enemySpawnRate = 350;
+    private starsSpawnRate = 1000;
+    private partHP = 6;
 
     // sizes
     private playerScale: number = 0.3;
@@ -60,7 +75,8 @@ export class MainScene extends Phaser.Scene {
 
     // timers
     private shootTimerEvent: Phaser.Time.TimerEvent;
-    private spawnENemyTimerEvent: Phaser.Time.TimerEvent;
+    private spawnEnemyTimerEvent: Phaser.Time.TimerEvent;
+    private spawnStarsTimerEvent: Phaser.Time.TimerEvent;
 
     constructor() {
         super({
@@ -70,6 +86,7 @@ export class MainScene extends Phaser.Scene {
         bindAll(this, [
             'onCanShoot',
             'onCanSpawnEnemy',
+            'onCanSpawnStars',
         ]);
     }
 
@@ -136,8 +153,11 @@ export class MainScene extends Phaser.Scene {
         });
 
 
-        this.shootTimerEvent = this.time.addEvent({ delay: 150, callback: this.onCanShoot, loop: true });
-        this.spawnENemyTimerEvent = this.time.addEvent({ delay: 150, callback: this.onCanSpawnEnemy, loop: true });
+        this.shootTimerEvent = this.time.addEvent({ delay: this.playerBulletRapid, callback: this.onCanShoot, loop: true });
+        this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy, loop: true });
+        this.spawnStarsTimerEvent = this.time.addEvent({ delay: this.starsSpawnRate, callback: this.onCanSpawnStars, loop: true });
+        this.initStars();
+
 
         this.registerKeyboard();
         this.registerMouse();
@@ -201,10 +221,11 @@ export class MainScene extends Phaser.Scene {
 
     private spawnEnemy(x: number, y: number) {
         const enemy: Enemy = this.matter.add.sprite(x, y, "spaceshooterExt", 'spaceShips_002');
-        enemy.hp = 3;
-        enemy.maxHp = 3;
+        enemy.hp = this.partHP;
+        enemy.maxHp = this.partHP;
         this.enemyList.push(enemy);
         enemy.setName('enemy');
+        enemy.setTint(0xCCCCCC);
         enemy
             .setOrigin(0.5, 0.5)
             .setScale(this.wingManScale)
@@ -226,11 +247,60 @@ export class MainScene extends Phaser.Scene {
         });
         enemy.takeDamage = (amount: number) => {
             enemy.hp -= amount;
+            enemy.setTint(0xffffFF);
+
+            enemy.undoTintEvent = this.time.addEvent({
+                delay: 10, loop: false, callback: () => {
+                    enemy.setTint(0xCCCCCC);
+                }
+            });
+
             if (enemy.hp <= 0) {
+                if (enemy.undoTintEvent) enemy.undoTintEvent.destroy();
                 enemy.destroy();
                 this.enemyList.splice(this.enemyList.indexOf(enemy), 1);
             }
         }
+    }
+    private initStars() {
+        for (let i = 0; i < 40; i++) {
+            const x = Phaser.Math.Between(0, +this.sys.game.config.width);
+            const y = Phaser.Math.Between(0, +this.sys.game.config.height);
+            this.spawnStar(x, y);
+
+        }
+    }
+
+    private onCanSpawnStars() {
+        const shipWidth = 50;
+        const x = Phaser.Math.Between(0, +this.sys.game.config.width);
+        const y = 0;
+        this.spawnStar(x, y);
+    }
+
+
+    private spawnStar(x: number, y: number) {
+        const star: Star = this.matter.add.sprite(x, y, "spaceshooter", 'star2');
+        star.setName('star');
+        star.setTint(0xCCCCCC);
+        star
+            .setOrigin(0.5, 0.5)
+            .setScale(Phaser.Math.FloatBetween(0.1, 0.3))
+            .setAngle(Phaser.Math.Between(0, 360))
+            .setScaleMode(Phaser.ScaleModes.NEAREST)
+            .setFrictionAir(0)
+            .setFrictionStatic(0)
+            .setFixedRotation()
+            .setCollisionCategory(collisionCategory.STAR)
+            .setCollidesWith(0)
+            ;
+
+        star.setVelocity(0, 0.4);
+        this.time.addEvent({
+            delay: 60 * 1000, loop: false, callback: () => {
+                star.destroy();
+            }
+        });
     }
 
     private doWingManShoot(wingMan: Phaser.Physics.Matter.Sprite) {
@@ -280,7 +350,7 @@ export class MainScene extends Phaser.Scene {
             x, y,
             key, frameName
         );
-        bullet.setName('player_bullet');
+        bullet.setName(name);
 
         this.bulletList.push(bullet);
         (bullet
@@ -306,11 +376,45 @@ export class MainScene extends Phaser.Scene {
             this.bulletList.splice(this.bulletList.indexOf(bullet), 1)
         }
 
-        bullet.onHitEnemy = (enemy: Enemy) => {
+        bullet.onHitEnemy = (enemy: Enemy, contactPoints: { vertex: { x: number, y: number } }[]) => {
             if (enemy.takeDamage) enemy.takeDamage(1);
+            contactPoints.forEach((contactPoint) => {
+                this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
+            });
             destroyBullet();
         }
         return bullet
+    }
+
+    private makeSpark(
+        x: number, y: number,
+    ): Effect {
+        const spark: Effect = this.add.sprite(
+            x, y,
+            'spaceshooter', 'star3'
+        );
+        spark.setName('star');
+
+        const color = Phaser.Display.Color.HSLToColor(Phaser.Math.FloatBetween(0, 1), 1, 0.9).color;
+        (spark
+            .setOrigin(0.5, 0.5)
+            .setScale(this.bulletScale)
+            .setScaleMode(Phaser.ScaleModes.NEAREST)
+            .setTint(color)
+        );
+
+        spark.birthdayEvent = this.time.addEvent({
+            delay: 50, loop: false, callback: () => {
+                destroySpark();
+            }
+        });
+
+        const destroySpark = () => {
+            spark.birthdayEvent.destroy();
+            spark.destroy();
+        }
+
+        return spark
     }
 
     private registerCollisionEvents(): void {
@@ -319,13 +423,15 @@ export class MainScene extends Phaser.Scene {
             pairs.forEach((pair: any) => {
                 const bodyA: any = pair.bodyA;
                 const bodyB: any = pair.bodyB;
+                const activeContacts: any = pair.activeContacts;
+
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'player_bullet' && bodyB.gameObject.name === 'enemy') {
-                    (<PlayerBullet>bodyA.gameObject).onHitEnemy(bodyB.gameObject);
+                    (<PlayerBullet>bodyA.gameObject).onHitEnemy(bodyB.gameObject, activeContacts);
                 }
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyB.gameObject.name === 'player_bullet' && bodyA.gameObject.name === 'enemy') {
-                    (<PlayerBullet>bodyB.gameObject).onHitEnemy(bodyA.gameObject);
+                    (<PlayerBullet>bodyB.gameObject).onHitEnemy(bodyA.gameObject, activeContacts);
                 }
             });
         });
