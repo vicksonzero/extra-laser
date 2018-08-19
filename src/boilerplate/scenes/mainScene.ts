@@ -7,10 +7,16 @@ interface IMoveKeys {
     left: Phaser.Input.Keyboard.Key,
 }
 
-interface Player extends Phaser.Physics.Matter.Sprite {
+interface Player extends Phaser.GameObjects.Container {
+    hp?: number;
+    maxHP?: number;
+    partHP?: HPBar;
+    partWing?: Phaser.GameObjects.Sprite;
     mouseTarget?: Phaser.Input.Pointer;
     followingMouse?: boolean;
     onHitPart?: (parent: any, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+    takeDamage?: (amount: number) => void;
+    undoTintEvent?: Phaser.Time.TimerEvent;
 }
 interface PlayerBullet extends Phaser.Physics.Matter.Sprite {
     onHitEnemy?: (enemy: Enemy, contactPoints: { vertex: { x: number, y: number } }[]) => void;
@@ -49,6 +55,7 @@ interface Enemy extends Phaser.Physics.Matter.Sprite {
     maxHP?: number;
     takeDamage?: (amount: number) => void;
     onHitPlayerPart?: (enemy: any, playerPart: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+    onHitPlayer?: (enemy: any, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     tintFill?: boolean;
     undoTintEvent?: Phaser.Time.TimerEvent;
 }
@@ -78,6 +85,7 @@ export class MainScene extends Phaser.Scene {
     private mass = 3000;
     private drag: number = 0.2;
     private playerBulletRapid = 150;
+    private playerHP = 20;
 
     private starsSpawnRate = 1000;
 
@@ -120,6 +128,9 @@ export class MainScene extends Phaser.Scene {
     private spawnEnemyTimerEvent: Phaser.Time.TimerEvent;
     private spawnStarsTimerEvent: Phaser.Time.TimerEvent;
 
+    // gameFlow
+    private gameIsOver = false;
+
     constructor() {
         super({
             key: "MainScene"
@@ -154,13 +165,26 @@ export class MainScene extends Phaser.Scene {
             .setBounds(0, 0, +this.sys.game.config.width, +this.sys.game.config.height)
             .disableGravity()
             ;
-        this.player = this.matter.add.sprite((+this.sys.game.config.width) / 2, (+this.sys.game.config.height) * 4 / 5, "spaceshooter", 'playerShip1_blue');
-        this.player.setName('player');
-        this.player
-            .setCircle(30, {})
+
+
+        const playerPartContainer = this.add.container((+this.sys.game.config.width) / 2, (+this.sys.game.config.height) * 4 / 5, []);
+        const playerPartWing = this.add.sprite(0, 0, 'spaceshooter', 'playerShip1_blue');
+        const playerPartHP = this.makeHPBar(0, 20, 100, 4);
+
+        playerPartContainer.add(playerPartWing
             .setOrigin(0.5, 0.5)
             .setScale(this.playerScale)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
+        );
+
+        playerPartContainer.add(playerPartHP
+            //
+        );
+
+        this.player = <Player>this.matter.add.gameObject(playerPartContainer, { shape: { type: 'circle', radius: 10 } });
+
+        this.player.setName('player');
+        (<any>this.player)
             .setMass(this.mass / 4)
             .setFrictionAir(this.drag)
             .setFixedRotation()
@@ -168,6 +192,35 @@ export class MainScene extends Phaser.Scene {
             .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL | collisionCategory.PART)
             ;
         this.player.onHitPart = this.onPlayerHitPart;
+        this.player.hp = this.playerHP;
+        this.player.maxHP = this.playerHP;
+        this.player.partWing = playerPartWing;
+        this.player.partHP = playerPartHP;
+
+        this.player.takeDamage = (amount: number) => {
+            this.player.hp -= amount;
+
+            const wing = this.player.partWing;
+            wing.setTint(0xff0000);
+            this.updateHPBar(this.player.partHP, this.player.hp, this.player.maxHP, 0, 0);
+
+            this.player.undoTintEvent = this.time.addEvent({
+                delay: 200, loop: false, callback: () => {
+                    wing.setTint(0xAAAAAA);
+                }
+            });
+
+            if (this.player.hp <= 0) {
+                if (this.player.undoTintEvent) this.player.undoTintEvent.destroy();
+                this.makeExplosion3(this.player.x, this.player.y);
+                this.gameIsOver = true;
+                this.player.visible = false;
+                (<any>this.player)
+                    .setCollisionCategory(0)
+                // .setPosition(-1000, -1000);
+                this.cameras.main.shake(3000, 0.04, false);
+            }
+        }
 
 
 
@@ -203,37 +256,39 @@ export class MainScene extends Phaser.Scene {
     update(time: number, delta: number): void {
         const MATTER_STEP = 16.666;
 
-        // Enables movement of player with WASD keys
-        if (this.moveKeys.up.isDown) {
-            this.player.applyForce(new Phaser.Math.Vector2(0, -this.accel));
-        }
-        if (this.moveKeys.down.isDown) {
-            this.player.applyForce(new Phaser.Math.Vector2(0, this.accel));
-        }
-        if (this.moveKeys.left.isDown) {
-            this.player.applyForce(new Phaser.Math.Vector2(-this.accel, 0));
-        }
-        if (this.moveKeys.right.isDown) {
-            this.player.applyForce(new Phaser.Math.Vector2(this.accel, 0));
-        }
+        if (!this.gameIsOver) {
+            // Enables movement of player with WASD keys
+            if (this.moveKeys.up.isDown) {
+                (<any>this.player).applyForce(new Phaser.Math.Vector2(0, -this.accel));
+            }
+            if (this.moveKeys.down.isDown) {
+                (<any>this.player).applyForce(new Phaser.Math.Vector2(0, this.accel));
+            }
+            if (this.moveKeys.left.isDown) {
+                (<any>this.player).applyForce(new Phaser.Math.Vector2(-this.accel, 0));
+            }
+            if (this.moveKeys.right.isDown) {
+                (<any>this.player).applyForce(new Phaser.Math.Vector2(this.accel, 0));
+            }
 
-        if (this.player.followingMouse) {
-            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.player.mouseTarget.x, this.player.mouseTarget.y);
-            const physicsDelta = this.matter.world.getDelta(time, delta);
-            // console.log(dist, this.topSpeed * physicsDelta / 100 * 1.1);
-            const currSpeed = this.player.body.speed;
-            // console.log('followingMouse', currSpeed, dist, currSpeed * (physicsDelta / 10));
+            if (this.player.followingMouse) {
+                const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.player.mouseTarget.x, this.player.mouseTarget.y);
+                const physicsDelta = this.matter.world.getDelta(time, delta);
+                // console.log(dist, this.topSpeed * physicsDelta / 100 * 1.1);
+                const currSpeed = this.player.body.speed;
+                // console.log('followingMouse', currSpeed, dist, currSpeed * (physicsDelta / 10));
 
-            if (dist > currSpeed * (physicsDelta / 10)) {
-                // this.matter.moveTo(this.plane, this.plane.mouseTarget.x, this.plane.mouseTarget.y, this.topSpeed);
-                const playerPos = new Phaser.Math.Vector2(this.player.x, this.player.y);
-                const direction = new Phaser.Math.Vector2(this.player.mouseTarget.x, this.player.mouseTarget.y).subtract(playerPos);
-                direction.scale(this.topSpeed / direction.length());
-                this.player.setVelocity(direction.x, direction.y);
-            } else {
-                // console.log('snap');
+                if (dist > currSpeed * (physicsDelta / 10)) {
+                    // this.matter.moveTo(this.plane, this.plane.mouseTarget.x, this.plane.mouseTarget.y, this.topSpeed);
+                    const playerPos = new Phaser.Math.Vector2(this.player.x, this.player.y);
+                    const direction = new Phaser.Math.Vector2(this.player.mouseTarget.x, this.player.mouseTarget.y).subtract(playerPos);
+                    direction.scale(this.topSpeed / direction.length());
+                    (<any>this.player).setVelocity(direction.x, direction.y);
+                } else {
+                    // console.log('snap');
 
-                this.player.setVelocity(0, 0);
+                    (<any>this.player).setVelocity(0, 0);
+                }
             }
         }
         // Constrain velocity of player
@@ -253,6 +308,7 @@ export class MainScene extends Phaser.Scene {
     }
 
     private onCanShoot(): void {
+        if (this.gameIsOver) return;
         const bullet = this.makeBullet('player_bullet',
             this.player.x, this.player.y - 20,
             "spaceshooter", 'laserBlue07',
@@ -333,7 +389,7 @@ export class MainScene extends Phaser.Scene {
             .setFrictionStatic(0)
             .setFixedRotation()
             .setCollisionCategory(collisionCategory.ENEMY)
-            .setCollidesWith(collisionCategory.PLAYER_BULLET | collisionCategory.ENEMY_BULL | collisionCategory.PLAYER_PART)
+            .setCollidesWith(collisionCategory.PLAYER_BULLET | collisionCategory.ENEMY_BULL | collisionCategory.PLAYER | collisionCategory.PLAYER_PART)
             ;
         // makeHPBar later
 
@@ -381,6 +437,19 @@ export class MainScene extends Phaser.Scene {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
             });
         };
+        enemy.onHitPlayer = (enemy: any, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => {
+            this.displayDamage(player.x, player.y, '-1', 3000);
+            player.takeDamage(1);
+
+            this.displayDamage(enemy.x, enemy.y, '-1', 3000);
+            if (enemy.takeDamage) enemy.takeDamage(1);
+
+            contactPoints.forEach((contactPoint) => {
+                this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
+            });
+        };
+
+
     }
 
     private makeBullet(
@@ -664,6 +733,48 @@ export class MainScene extends Phaser.Scene {
         return explosion;
     }
 
+    private makeExplosion3(
+        x: number, y: number,
+    ): Effect {
+        const explosion: Effect = this.add.sprite(
+            x, y,
+            'explosion1'
+        );
+
+        explosion.anims.play('explode');
+
+        explosion.setName('explosion');
+
+        // const color = Phaser.Display.Color.HSLToColor(Phaser.Math.FloatBetween(0, 1), 1, 0.9).color;
+        (explosion
+            .setOrigin(0.5, 0.4)
+            .setScale(this.bulletScale * 5)
+            .setTint(0x88FFFF)
+            .setScaleMode(Phaser.ScaleModes.NEAREST)
+            // .setTint(color)
+        );
+
+        explosion.birthdayEvent = this.time.addEvent({
+            delay: 100, loop: false, callback: () => {
+                destroySpark();
+                this.displayTitle(
+                    `Game Over\n` +
+                    `\n` +
+                    `Score: ______\n` +
+                    `Refresh browser to restart`,
+                    60 * 1000
+                );
+            }
+        });
+
+        const destroySpark = () => {
+            explosion.birthdayEvent.destroy();
+            explosion.destroy();
+        }
+
+        return explosion;
+    }
+
     private displayTitle(msg: string, duration: number) {
         if (!this.title) {
             this.title = this.add.text(
@@ -756,7 +867,7 @@ export class MainScene extends Phaser.Scene {
             wing.setTint(0xff0000);
             this.updateHPBar(part.partHP, part.hp, part.maxHP, 0, 0);
 
-            wing.undoTintEvent = this.time.addEvent({
+            part.undoTintEvent = this.time.addEvent({
                 delay: 200, loop: false, callback: () => {
                     wing.setTint(0xAAAAAA);
                 }
@@ -765,12 +876,6 @@ export class MainScene extends Phaser.Scene {
             if (part.hp <= 0) {
                 if (part.undoTintEvent) part.undoTintEvent.destroy();
                 this.makeExplosion2(part.x, part.y);
-                if (Math.random() <= this.partSpawnChance) {
-                    this.makePart(
-                        part.x, part.y,
-                        true
-                    );
-                }
                 this.partList.splice(this.partList.indexOf(part), 1);
                 part.destroy();
                 this.cameras.main.shake(100, 0.04, false);
@@ -812,6 +917,7 @@ export class MainScene extends Phaser.Scene {
                 const bodyB: any = pair.bodyB;
                 const activeContacts: any = pair.activeContacts;
 
+                // player_bullet vs enemy
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 // console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
                 if (bodyA.gameObject.name === 'player_bullet' && bodyB.gameObject.name === 'enemy') {
@@ -822,6 +928,7 @@ export class MainScene extends Phaser.Scene {
                     (<PlayerBullet>bodyB.gameObject).onHitEnemy(bodyA.gameObject, activeContacts);
                 }
 
+                // enemy vs player_part
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'enemy' && bodyB.gameObject.name === 'player_part') {
                     (<Enemy>bodyA.gameObject).onHitPlayerPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
@@ -831,6 +938,17 @@ export class MainScene extends Phaser.Scene {
                     (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
                 }
 
+                // enemy vs player
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                if (bodyA.gameObject.name === 'enemy' && bodyB.gameObject.name === 'player') {
+                    (<Enemy>bodyA.gameObject).onHitPlayer(bodyA.gameObject, bodyB.gameObject, activeContacts);
+                }
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                if (bodyB.gameObject.name === 'enemy' && bodyA.gameObject.name === 'player') {
+                    (<Enemy>bodyB.gameObject).onHitPlayer(bodyB.gameObject, bodyA.gameObject, activeContacts);
+                }
+
+                // player vs part
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'player' && bodyB.gameObject.name === 'part') {
                     (<Player>bodyA.gameObject).onHitPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
@@ -840,6 +958,7 @@ export class MainScene extends Phaser.Scene {
                     (<Player>bodyB.gameObject).onHitPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
                 }
 
+                // player_part vs part
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'player_part' && bodyB.gameObject.name === 'part') {
                     (<Player>bodyA.gameObject).onHitPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
