@@ -53,6 +53,8 @@ interface Star extends Phaser.Physics.Matter.Sprite {
 interface Enemy extends Phaser.Physics.Matter.Sprite {
     hp?: number;
     maxHP?: number;
+    partWing: Phaser.GameObjects.Sprite;
+    partHP: Phaser.GameObjects.Graphics;
     takeDamage?: (amount: number) => void;
     onHitPlayerPart?: (enemy: any, playerPart: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     onHitPlayer?: (enemy: any, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => void;
@@ -374,16 +376,35 @@ export class MainScene extends Phaser.Scene {
     }
 
     private spawnEnemy(x: number, y: number) {
-        const enemy: Enemy = this.matter.add.sprite(x, y, "spaceshooterExt", 'spaceShips_002');
-        enemy.hp = this.enemyHP;
-        enemy.maxHP = this.enemyHP;
-        this.enemyList.push(enemy);
-        enemy.setName('enemy');
-        enemy.setTint(0xCCCCCC);
-        enemy
+
+        const partContainer = this.add.container(x, y, []);
+        const partWing = this.add.sprite(0, 0, 'spaceshooterExt', 'spaceShips_002');
+        const partHP = this.makeHPBar(0, 20, 30, 4);
+
+        partContainer.add(partWing
             .setOrigin(0.5, 0.5)
             .setScale(this.wingManScale)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
+            .setTint(0xCCCCCC)
+        );
+
+        partContainer.add(partHP
+            //
+        );
+
+        const enemy: Enemy = <Enemy>this.matter.add.gameObject(partContainer, { shape: { type: 'rectangle', width: 40, height: 30 } });
+
+        enemy.hp = this.enemyHP;
+        enemy.maxHP = this.enemyHP;
+        enemy.partWing = partWing;
+        enemy.partHP = partHP;
+
+        this.enemyList.push(enemy);
+
+
+
+        enemy.setName('enemy');
+        enemy
             .setMass(this.mass)
             .setFrictionAir(0)
             .setFrictionStatic(0)
@@ -402,11 +423,12 @@ export class MainScene extends Phaser.Scene {
         });
         enemy.takeDamage = (amount: number) => {
             enemy.hp -= amount;
-            enemy.setTint(0xffffFF);
+            enemy.partWing.setTint(0xffffFF);
+            this.updateHPBar(enemy.partHP, enemy.hp, enemy.maxHP, 0, 0);
 
             enemy.undoTintEvent = this.time.addEvent({
                 delay: 10, loop: false, callback: () => {
-                    enemy.setTint(0xCCCCCC);
+                    enemy.partWing.setTint(0xCCCCCC);
                 }
             });
 
@@ -1068,7 +1090,7 @@ export class MainScene extends Phaser.Scene {
         //     newEnemySpawnRate = 350;
         // }
 
-        newEnemyHP = this.enemyHP + combatLevel / 100;
+        newEnemyHP = this.enemyHP + combatLevel / 90;
         newEnemySpawnRate = this.enemySpawnRate - 50;
         if (newEnemySpawnRate < 300) {
             newEnemySpawnRate = 300;
