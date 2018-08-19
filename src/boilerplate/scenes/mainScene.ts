@@ -120,6 +120,8 @@ export class MainScene extends Phaser.Scene {
 
     // display objects list
     private title: Phaser.GameObjects.Text;
+    private powerMeter: Phaser.GameObjects.Text;
+    private debugMeter: Phaser.GameObjects.Text;
     private titleTween: Phaser.Tweens.Tween;
     private bulletList: PlayerBullet[] = [];
     private partList: any[] = []; /** @todo remove any */
@@ -132,6 +134,8 @@ export class MainScene extends Phaser.Scene {
 
     // gameFlow
     private gameIsOver = false;
+    private score = 0;
+    private powerLevel = 0;
 
     constructor() {
         super({
@@ -252,6 +256,17 @@ export class MainScene extends Phaser.Scene {
             `How to play:\n` +
             `Touch / Mouse / WASD`,
             3000
+        );
+        this.powerMeter = this.add.text(
+            10, 10,
+            'Power: 10',
+            { color: '#FFFFFF', align: 'left' }
+        );
+
+        this.debugMeter = this.add.text(
+            10, 30,
+            'Debug:',
+            { color: '#FF0000', align: 'left', fontSize: '14px' }
         );
     }
 
@@ -433,6 +448,7 @@ export class MainScene extends Phaser.Scene {
             });
 
             if (enemy.hp <= 0) {
+                this.score += this.powerLevel * enemy.maxHP;
                 if (enemy.undoTintEvent) enemy.undoTintEvent.destroy();
                 this.makeExplosion1(enemy.x, enemy.y);
                 if (Math.random() <= this.partSpawnChance) {
@@ -493,6 +509,7 @@ export class MainScene extends Phaser.Scene {
 
         this.bulletList.push(bullet);
         (bullet
+            .setAlpha(0.9)
             .setAngle(angle)
             .setOrigin(0.5, 0.5)
             .setScale(this.bulletScale)
@@ -782,7 +799,7 @@ export class MainScene extends Phaser.Scene {
                 this.displayTitle(
                     `Game Over\n` +
                     `\n` +
-                    `Score: ______\n` +
+                    `Score: ${Math.floor(this.score / 100)}\n` +
                     `Refresh browser to restart`,
                     60 * 1000
                 );
@@ -1066,8 +1083,12 @@ export class MainScene extends Phaser.Scene {
             playerPartCount * 1
         );
 
-        const allowedEnemies = Math.log(combatLevel) / Math.log(1.5);
+        const allowedEnemies = Math.max(1, Math.log(combatLevel) / Math.log(1.5));
         // console.log('updateDifficulty', this.enemyList.length);
+
+        this.powerLevel = combatLevel * 150 + allowedEnemies * 100;
+        const powerStr = (this.powerLevel < 9000 ? Math.floor(this.powerLevel) : 'over 9000')
+        this.powerMeter.setText(`Power: ${powerStr}`);
 
         if (this.enemyList.length >= allowedEnemies) {
             return;
@@ -1093,7 +1114,12 @@ export class MainScene extends Phaser.Scene {
         newEnemyHP = this.enemyHP + combatLevel / 90;
         newEnemySpawnRate = this.enemySpawnRate - 50;
         if (newEnemySpawnRate < 300) {
-            newEnemySpawnRate = 300;
+            if (combatLevel < 20) {
+                newEnemySpawnRate = 300;
+            } else {
+                newEnemySpawnRate = 200;
+                newEnemyHP += 0.04;
+            }
             newEnemyHP += 0.08;
         }
 
@@ -1108,9 +1134,9 @@ export class MainScene extends Phaser.Scene {
             hasChanged = true;
         }
 
+        this.debugMeter.setText(`${this.enemySpawnRate}, ${this.enemyHP.toFixed(2)}`);
         if (hasChanged) {
             console.log('updateDifficulty', this.enemySpawnRate, this.enemyHP);
-
         } else {
             if ((<any>window).debugDifficulty) {
                 console.log('updateDifficulty', this.enemySpawnRate, this.enemyHP);
