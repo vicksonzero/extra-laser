@@ -7,14 +7,29 @@ interface IMoveKeys {
     left: Phaser.Input.Keyboard.Key,
 }
 
-interface Plane extends Phaser.Physics.Matter.Sprite {
+interface Player extends Phaser.Physics.Matter.Sprite {
     mouseTarget?: Phaser.Input.Pointer;
     followingMouse?: boolean;
+    onHitPlayer?: (parent: Enemy, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
 }
 interface PlayerBullet extends Phaser.Physics.Matter.Sprite {
     onHitEnemy?: (enemy: Enemy, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     birthdayEvent?: Phaser.Time.TimerEvent;
 }
+
+interface Part extends Phaser.GameObjects.GameObject {
+    container?: PartContainer;
+    partWing?: Phaser.GameObjects.GameObject;
+    partGun?: Phaser.GameObjects.GameObject;
+    onHitPlayer?: (parent: Enemy, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+}
+
+interface PartContainer extends Phaser.GameObjects.Container {
+
+}
+
+
+
 interface Effect extends Phaser.GameObjects.Sprite {
     birthdayEvent?: Phaser.Time.TimerEvent;
 }
@@ -37,14 +52,16 @@ enum collisionCategory {
     ENEMY = 1 << 3,
     ENEMY_BULL = 1 << 4,
     STAR = 1 << 5,
+    PART = 1 << 6,
+    PLAYER_PART = 1 << 7,
 }
 
 
 export class MainScene extends Phaser.Scene {
 
     // movement
-    private topSpeed: number = 15;
-    private accel: number = 7 * 2;
+    private topSpeed: number = 6;
+    private accel: number = 4;
     private mass = 3000;
     private drag: number = 0.2;
     private playerBulletRapid = 150;
@@ -65,12 +82,12 @@ export class MainScene extends Phaser.Scene {
     private linkageDamping: number = 0.01;
 
     // display objects
-    private plane: Plane;
+    private player: Player;
     private moveKeys: IMoveKeys;
 
     // display objects list
     private bulletList: PlayerBullet[] = [];
-    private wingManList: Phaser.Physics.Matter.Sprite[] = [];
+    private wingManList: any[] = []; /** @todo remove any */
     private enemyList: Enemy[] = [];
 
     // timers
@@ -103,9 +120,10 @@ export class MainScene extends Phaser.Scene {
             .setBounds(0, 0, +this.sys.game.config.width, +this.sys.game.config.height)
             .disableGravity()
             ;
-        this.plane = this.matter.add.sprite(150, 300, "spaceshooter", 'playerShip1_blue');
-        this.plane.setName('player');
-        this.plane
+        this.player = this.matter.add.sprite(150, 300, "spaceshooter", 'playerShip1_blue');
+        this.player.setName('player');
+        this.player
+            .setCircle(30, {})
             .setOrigin(0.5, 0.5)
             .setScale(this.playerScale)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
@@ -113,51 +131,59 @@ export class MainScene extends Phaser.Scene {
             .setFrictionAir(this.drag)
             .setFixedRotation()
             .setCollisionCategory(collisionCategory.PLAYER)
-            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
+            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL | collisionCategory.PART)
             ;
 
-        const wing1 = this.matter.add.sprite(50, 300, "spaceshooter", 'playerShip2_blue');
-        this.wingManList.push(wing1);
-        wing1.setName('wing1');
-        wing1
-            .setOrigin(0.5, 0.5)
-            .setScale(this.wingManScale)
-            .setScaleMode(Phaser.ScaleModes.NEAREST)
-            .setMass(this.mass / 4)
-            .setFrictionAir(this.drag)
-            .setFixedRotation()
-            .setCollisionCategory(collisionCategory.PLAYER)
-            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
-            ;
+        // const wing1 = this.matter.add.sprite(50, 300, "spaceshooter", 'playerShip2_blue');
+        // this.wingManList.push(wing1);
+        // wing1.setName('wing1');
+        // wing1
+        //     .setOrigin(0.5, 0.5)
+        //     .setScale(this.wingManScale)
+        //     .setScaleMode(Phaser.ScaleModes.NEAREST)
+        //     .setMass(this.mass / 4)
+        //     .setFrictionAir(this.drag)
+        //     .setFixedRotation()
+        //     .setCollisionCategory(collisionCategory.PLAYER)
+        //     .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
+        //     ;
 
-        this.matter.add.joint(this.plane, wing1, this.linkageDistance, this.linkageStiffness, {
-            pointA: { x: -50, y: 0 },
-            damping: this.linkageDamping,
-        });
+        // this.matter.add.joint(this.plane, wing1, this.linkageDistance, this.linkageStiffness, {
+        //     pointA: { x: -50, y: 0 },
+        //     damping: this.linkageDamping,
+        // });
 
-        const wing2 = this.matter.add.sprite(250, 300, "spaceshooter", 'playerShip2_blue');
-        this.wingManList.push(wing2);
-        wing2.setName('wing2');
-        wing2
-            .setOrigin(0.5, 0.5)
-            .setScale(this.wingManScale)
-            .setScaleMode(Phaser.ScaleModes.NEAREST)
-            .setMass(this.mass)
-            .setFrictionAir(this.drag)
-            .setFixedRotation()
-            .setCollisionCategory(collisionCategory.PLAYER)
-            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
+        // const wing2 = this.matter.add.sprite(250, 300, "spaceshooter", 'playerShip2_blue');
+        // this.wingManList.push(wing2);
+        // wing2.setName('wing2');
+        // wing2
+        //     .setOrigin(0.5, 0.5)
+        //     .setScale(this.wingManScale)
+        //     .setScaleMode(Phaser.ScaleModes.NEAREST)
+        //     .setMass(this.mass)
+        //     .setFrictionAir(this.drag)
+        //     .setFixedRotation()
+        //     .setCollisionCategory(collisionCategory.PLAYER)
+        //     .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
 
-        this.matter.add.joint(this.plane, wing2, this.linkageDistance, this.linkageStiffness, {
-            pointA: { x: 50, y: 0 },
-            damping: this.linkageDamping,
-        });
+        // this.matter.add.joint(this.plane, wing2, this.linkageDistance, this.linkageStiffness, {
+        //     pointA: { x: 50, y: 0 },
+        //     damping: this.linkageDamping,
+        // });
 
 
-        this.shootTimerEvent = this.time.addEvent({ delay: this.playerBulletRapid, callback: this.onCanShoot, loop: true });
-        this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy, loop: true });
-        this.spawnStarsTimerEvent = this.time.addEvent({ delay: this.starsSpawnRate, callback: this.onCanSpawnStars, loop: true });
+        // this.shootTimerEvent = this.time.addEvent({ delay: this.playerBulletRapid, callback: this.onCanShoot, loop: true });
+        // this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy, loop: true });
+        // this.spawnStarsTimerEvent = this.time.addEvent({ delay: this.starsSpawnRate, callback: this.onCanSpawnStars, loop: true });
         this.initStars();
+
+
+        for (let i = 0; i < 10; i++) {
+            this.makePart(
+                Phaser.Math.FloatBetween(0, +this.sys.game.config.width),
+                Phaser.Math.FloatBetween(0, +this.sys.game.config.height),
+            )
+        }
 
 
         this.registerKeyboard();
@@ -167,8 +193,8 @@ export class MainScene extends Phaser.Scene {
 
         const tutorial = this.add.text((+this.sys.game.config.width) / 2, (+this.sys.game.config.height) / 2,
             `Extra Laser\n` +
-            `\n`+
-            `How to play:\n`+
+            `\n` +
+            `How to play:\n` +
             `Touch / Mouse / WASD`
             , { color: '#FFFFFF', align: 'center' });
         tutorial.setOrigin(0.5);
@@ -187,31 +213,35 @@ export class MainScene extends Phaser.Scene {
 
         // Enables movement of player with WASD keys
         if (this.moveKeys.up.isDown) {
-            this.plane.applyForce(new Phaser.Math.Vector2(0, -this.accel));
+            this.player.applyForce(new Phaser.Math.Vector2(0, -this.accel));
         }
         if (this.moveKeys.down.isDown) {
-            this.plane.applyForce(new Phaser.Math.Vector2(0, this.accel));
+            this.player.applyForce(new Phaser.Math.Vector2(0, this.accel));
         }
         if (this.moveKeys.left.isDown) {
-            this.plane.applyForce(new Phaser.Math.Vector2(-this.accel, 0));
+            this.player.applyForce(new Phaser.Math.Vector2(-this.accel, 0));
         }
         if (this.moveKeys.right.isDown) {
-            this.plane.applyForce(new Phaser.Math.Vector2(this.accel, 0));
+            this.player.applyForce(new Phaser.Math.Vector2(this.accel, 0));
         }
 
-        if (this.plane.followingMouse) {
-            const dist = Phaser.Math.Distance.Between(this.plane.x, this.plane.y, this.plane.mouseTarget.x, this.plane.mouseTarget.y);
+        if (this.player.followingMouse) {
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.player.mouseTarget.x, this.player.mouseTarget.y);
             const physicsDelta = this.matter.world.getDelta(time, delta);
             // console.log(dist, this.topSpeed * physicsDelta / 100 * 1.1);
+            const currSpeed = this.player.body.speed;
+            // console.log('followingMouse', currSpeed, dist, currSpeed * (physicsDelta / 10));
 
-            if (dist > this.topSpeed * physicsDelta / 100 * 1.1) {
+            if (dist > currSpeed * (physicsDelta / 10)) {
                 // this.matter.moveTo(this.plane, this.plane.mouseTarget.x, this.plane.mouseTarget.y, this.topSpeed);
-                const playerPos = new Phaser.Math.Vector2(this.plane.x, this.plane.y);
-                const direction = new Phaser.Math.Vector2(this.plane.mouseTarget.x, this.plane.mouseTarget.y).subtract(playerPos);
+                const playerPos = new Phaser.Math.Vector2(this.player.x, this.player.y);
+                const direction = new Phaser.Math.Vector2(this.player.mouseTarget.x, this.player.mouseTarget.y).subtract(playerPos);
                 direction.scale(this.topSpeed / direction.length());
-                this.plane.setVelocity(direction.x, direction.y);
+                this.player.setVelocity(direction.x, direction.y);
             } else {
-                this.plane.setPosition(this.plane.mouseTarget.x, this.plane.mouseTarget.y);
+                // console.log('snap');
+
+                this.player.setPosition(this.player.mouseTarget.x, this.player.mouseTarget.y);
             }
         }
         // Constrain velocity of player
@@ -219,9 +249,27 @@ export class MainScene extends Phaser.Scene {
 
     }
 
+    private doWingManShoot(wingMan: Phaser.Physics.Matter.Sprite) {
+        const gunPos = { x: 20, y: -10 };
+        const gunAngle = { x: -1, y: 0 };
+        const bullet1 = this.makeBullet('player_bullet',
+            wingMan.x - gunPos.x, wingMan.y + gunPos.y,
+            "spaceshooter", 'laserBlue07',
+            { x: 0 + gunAngle.x, y: -20 + gunAngle.y }
+        )
+        this.bulletList.push(bullet1);
+
+        const bullet2 = this.makeBullet('player_bullet',
+            wingMan.x + gunPos.x, wingMan.y + gunPos.y,
+            "spaceshooter", 'laserBlue07',
+            { x: 0 - gunAngle.x, y: - 20 + gunAngle.y }
+        );
+        this.bulletList.push(bullet2);
+    }
+
     private onCanShoot(): void {
         const bullet = this.makeBullet('player_bullet',
-            this.plane.x, this.plane.y - 20,
+            this.player.x, this.player.y - 20,
             "spaceshooter", 'laserBlue07',
             { x: 0, y: -20 }
         );
@@ -235,6 +283,49 @@ export class MainScene extends Phaser.Scene {
         const x = Phaser.Math.Between(shipWidth, +this.sys.game.config.width - shipWidth);
         const y = 0;
         this.spawnEnemy(x, y);
+    }
+
+
+
+    private initStars() {
+        for (let i = 0; i < 40; i++) {
+            const x = Phaser.Math.Between(0, +this.sys.game.config.width);
+            const y = Phaser.Math.Between(0, +this.sys.game.config.height);
+            this.spawnStar(x, y);
+
+        }
+    }
+
+    private onCanSpawnStars() {
+        const shipWidth = 50;
+        const x = Phaser.Math.Between(0, +this.sys.game.config.width);
+        const y = 0;
+        this.spawnStar(x, y);
+    }
+
+    private spawnStar(x: number, y: number) {
+        const depth = Phaser.Math.FloatBetween(0, 0.2);
+        const star: Star = this.matter.add.sprite(x, y, "spaceshooter", 'star1');
+        star.setName('star');
+        star.setTint(0xCCCCCC);
+        star
+            .setOrigin(0.5, 0.5)
+            .setScale(0.1 + depth)
+            .setAngle(Phaser.Math.Between(0, 360))
+            .setScaleMode(Phaser.ScaleModes.NEAREST)
+            .setFrictionAir(0)
+            .setFrictionStatic(0)
+            .setFixedRotation()
+            .setCollisionCategory(collisionCategory.STAR)
+            .setCollidesWith(0)
+            ;
+
+        star.setVelocity(0, 0.3 + depth * 0.2);
+        this.time.addEvent({
+            delay: 60 * 1000, loop: false, callback: () => {
+                star.destroy();
+            }
+        });
     }
 
     private spawnEnemy(x: number, y: number) {
@@ -283,84 +374,6 @@ export class MainScene extends Phaser.Scene {
             }
         }
     }
-    private initStars() {
-        for (let i = 0; i < 40; i++) {
-            const x = Phaser.Math.Between(0, +this.sys.game.config.width);
-            const y = Phaser.Math.Between(0, +this.sys.game.config.height);
-            this.spawnStar(x, y);
-
-        }
-    }
-
-    private onCanSpawnStars() {
-        const shipWidth = 50;
-        const x = Phaser.Math.Between(0, +this.sys.game.config.width);
-        const y = 0;
-        this.spawnStar(x, y);
-    }
-
-
-    private spawnStar(x: number, y: number) {
-        const depth = Phaser.Math.FloatBetween(0, 0.2);
-        const star: Star = this.matter.add.sprite(x, y, "spaceshooter", 'star1');
-        star.setName('star');
-        star.setTint(0xCCCCCC);
-        star
-            .setOrigin(0.5, 0.5)
-            .setScale(0.1 + depth)
-            .setAngle(Phaser.Math.Between(0, 360))
-            .setScaleMode(Phaser.ScaleModes.NEAREST)
-            .setFrictionAir(0)
-            .setFrictionStatic(0)
-            .setFixedRotation()
-            .setCollisionCategory(collisionCategory.STAR)
-            .setCollidesWith(0)
-            ;
-
-        star.setVelocity(0, 0.3 + depth * 0.2);
-        this.time.addEvent({
-            delay: 60 * 1000, loop: false, callback: () => {
-                star.destroy();
-            }
-        });
-    }
-
-    private doWingManShoot(wingMan: Phaser.Physics.Matter.Sprite) {
-        const gunPos = { x: 20, y: -10 };
-        const gunAngle = { x: -1, y: 0 };
-        const bullet1 = this.makeBullet('player_bullet',
-            wingMan.x - gunPos.x, wingMan.y + gunPos.y,
-            "spaceshooter", 'laserBlue07',
-            { x: 0 + gunAngle.x, y: -20 + gunAngle.y }
-        )
-        this.bulletList.push(bullet1);
-
-        const bullet2 = this.makeBullet('player_bullet',
-            wingMan.x + gunPos.x, wingMan.y + gunPos.y,
-            "spaceshooter", 'laserBlue07',
-            { x: 0 - gunAngle.x, y: - 20 + gunAngle.y }
-        );
-        this.bulletList.push(bullet2);
-    }
-
-    // Ensures sprite speed doesnt exceed maxVelocity while update is called
-    private constrainVelocity(sprite: Phaser.Physics.Matter.Sprite, maxVelocity: number) {
-        if (!sprite || !sprite.body)
-            return;
-
-        var angle, currVelocitySqr, vx, vy;
-        vx = sprite.body.velocity.x;
-        vy = sprite.body.velocity.y;
-        currVelocitySqr = vx * vx + vy * vy;
-
-        if (currVelocitySqr > maxVelocity * maxVelocity) {
-            angle = Math.atan2(vy, vx);
-            vx = Math.cos(angle) * maxVelocity;
-            vy = Math.sin(angle) * maxVelocity;
-            sprite.body.velocity.x = vx;
-            sprite.body.velocity.y = vy;
-        }
-    }
 
     private makeBullet(
         name: string,
@@ -406,6 +419,82 @@ export class MainScene extends Phaser.Scene {
             destroyBullet();
         }
         return bullet
+    }
+
+    private makePart(
+        x: number, y: number
+    ) {
+        const wingName = <string>Phaser.Utils.Array.GetRandom([
+            'spaceParts_001',
+            'spaceParts_002',
+            'spaceParts_003',
+            'spaceParts_004',
+            'spaceParts_005',
+            'spaceParts_006',
+            'spaceParts_007',
+            'spaceParts_008',
+            'spaceParts_009',
+        ]);
+        const gunName = <string>Phaser.Utils.Array.GetRandom([
+            // 'gun00',
+            // 'gun01',
+            // 'gun02',
+            // 'gun03',
+            // 'gun04',
+            // 'gun05',
+            // 'gun06',
+            // 'gun07',
+            'gun08',
+            // 'gun09',
+            // 'gun10',
+        ]);
+        const gunOffset0 = 5;
+        const gunOffset = {
+            x: Phaser.Math.FloatBetween(-gunOffset0, gunOffset0),
+            y: Phaser.Math.FloatBetween(-gunOffset0, gunOffset0)-10,
+        };
+
+        const partContainer = this.add.container(x, y, []);
+        const partWing = this.add.sprite(0, 0, 'spaceshooterExt', wingName);
+        const partGun = this.add.sprite(0, 0, 'spaceshooter', gunName);
+
+
+        partContainer.add(partGun
+            .setX(gunOffset.x)
+            .setY(gunOffset.y)
+            .setOrigin(0.5, 0.5)
+            .setScale(this.wingManScale * 1.5)
+            .setScaleMode(Phaser.ScaleModes.NEAREST)
+        );
+
+        partContainer.add(partWing
+            .setOrigin(0.5, 0.5)
+            .setScale(this.wingManScale * 1.5)
+            .setAngle(Phaser.Math.FloatBetween(0, 359))
+            .setScaleMode(Phaser.ScaleModes.NEAREST)
+        );
+
+        const part: Part = this.matter.add.gameObject(partContainer, { shape: { type: 'circle', radius: 15 } });
+
+
+        this.wingManList.push(part);
+        part.setName('part');
+
+        (<Phaser.Physics.Matter.Sprite>part)
+            .setMass(this.mass / 4)
+            .setFrictionAir(0)
+            .setFrictionStatic(0)
+            .setFixedRotation()
+            .setCollisionCategory(collisionCategory.PART)
+            .setCollidesWith(collisionCategory.WORLD | collisionCategory.PLAYER | collisionCategory.PART)
+            ;
+
+        (<Phaser.Physics.Matter.Sprite>part).setVelocity(0.1, 0);
+
+        // this.matter.add.joint(this.plane, part, this.linkageDistance, this.linkageStiffness, {
+        //     pointA: { x: -50, y: 0 },
+        //     damping: this.linkageDamping,
+        // });
     }
 
     private makeSpark(
@@ -480,6 +569,23 @@ export class MainScene extends Phaser.Scene {
         return explosion;
     }
 
+    // /**
+    //  * @todo change any back to Phaser.Physics.Matter.*
+    //  */
+    // private attachPart(parent: any, part: any, dx: number, dy: number) {
+
+    // }
+
+    // /**
+    //  * @todo change any back to Phaser.Physics.Matter.*
+    //  */
+    // private onPartHitPlayer(parent: any, part: any, contactPoints: { vertex: { x: number, y: number } }) {
+    //     const newPart = this.makePart();
+    //     this.attachPart(parent, newPart);
+    // }
+
+
+
     private registerCollisionEvents(): void {
         this.matter.world.on('collisionstart', (event: any, bodyA: any, bodyB: any) => {
             const { pairs } = event;
@@ -489,6 +595,7 @@ export class MainScene extends Phaser.Scene {
                 const activeContacts: any = pair.activeContacts;
 
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
                 if (bodyA.gameObject.name === 'player_bullet' && bodyB.gameObject.name === 'enemy') {
                     (<PlayerBullet>bodyA.gameObject).onHitEnemy(bodyB.gameObject, activeContacts);
                 }
@@ -536,11 +643,31 @@ export class MainScene extends Phaser.Scene {
 
     private registerMouse(): void {
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-            this.plane.followingMouse = true;
-            this.plane.mouseTarget = pointer;
+            this.player.followingMouse = true;
+            this.player.mouseTarget = pointer;
         });
         this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-            this.plane.followingMouse = false;
+            this.player.followingMouse = false;
         });
+    }
+
+
+    // Ensures sprite speed doesnt exceed maxVelocity while update is called
+    private constrainVelocity(sprite: Phaser.Physics.Matter.Sprite, maxVelocity: number) {
+        if (!sprite || !sprite.body)
+            return;
+
+        var angle, currVelocitySqr, vx, vy;
+        vx = sprite.body.velocity.x;
+        vy = sprite.body.velocity.y;
+        currVelocitySqr = vx * vx + vy * vy;
+
+        if (currVelocitySqr > maxVelocity * maxVelocity) {
+            angle = Math.atan2(vy, vx);
+            vx = Math.cos(angle) * maxVelocity;
+            vy = Math.sin(angle) * maxVelocity;
+            sprite.body.velocity.x = vx;
+            sprite.body.velocity.y = vy;
+        }
     }
 }

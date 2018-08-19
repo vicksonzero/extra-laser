@@ -16,7 +16,7 @@ const config: GameConfig = {
     physics: {
         default: "matter",
         matter: {
-            // debug: true,
+            debug: true,
         }
     },
 };
