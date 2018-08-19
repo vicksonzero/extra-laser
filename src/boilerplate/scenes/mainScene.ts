@@ -10,18 +10,19 @@ interface IMoveKeys {
 interface Player extends Phaser.Physics.Matter.Sprite {
     mouseTarget?: Phaser.Input.Pointer;
     followingMouse?: boolean;
-    onHitPlayer?: (parent: Enemy, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+    onHitPart?: (parent: any, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
 }
 interface PlayerBullet extends Phaser.Physics.Matter.Sprite {
     onHitEnemy?: (enemy: Enemy, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     birthdayEvent?: Phaser.Time.TimerEvent;
 }
 
-interface Part extends Phaser.GameObjects.GameObject {
+interface Part extends Phaser.GameObjects.Container {
     container?: PartContainer;
     partWing?: Phaser.GameObjects.GameObject;
     partGun?: Phaser.GameObjects.GameObject;
-    onHitPlayer?: (parent: Enemy, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+    onHitPart?: (parent: any, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+    destroyTimer?: Phaser.Time.TimerEvent;
 }
 
 interface PartContainer extends Phaser.GameObjects.Container {
@@ -104,6 +105,7 @@ export class MainScene extends Phaser.Scene {
             'onCanShoot',
             'onCanSpawnEnemy',
             'onCanSpawnStars',
+            'onPlayerHitPart',
         ]);
     }
 
@@ -133,6 +135,7 @@ export class MainScene extends Phaser.Scene {
             .setCollisionCategory(collisionCategory.PLAYER)
             .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL | collisionCategory.PART)
             ;
+        this.player.onHitPart = this.onPlayerHitPart;
 
         // const wing1 = this.matter.add.sprite(50, 300, "spaceshooter", 'playerShip2_blue');
         // this.wingManList.push(wing1);
@@ -172,7 +175,7 @@ export class MainScene extends Phaser.Scene {
         // });
 
 
-        // this.shootTimerEvent = this.time.addEvent({ delay: this.playerBulletRapid, callback: this.onCanShoot, loop: true });
+        this.shootTimerEvent = this.time.addEvent({ delay: this.playerBulletRapid, callback: this.onCanShoot, loop: true });
         // this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy, loop: true });
         // this.spawnStarsTimerEvent = this.time.addEvent({ delay: this.starsSpawnRate, callback: this.onCanSpawnStars, loop: true });
         this.initStars();
@@ -249,22 +252,16 @@ export class MainScene extends Phaser.Scene {
 
     }
 
-    private doWingManShoot(wingMan: Phaser.Physics.Matter.Sprite) {
-        const gunPos = { x: 20, y: -10 };
-        const gunAngle = { x: -1, y: 0 };
+    private doWingManShoot(wingMan: Part) {
+        const partGun = wingMan.partGun as Phaser.GameObjects.Sprite;
+        const gunAngle = Phaser.Math.Rotate({ x: 0, y: 0 }, partGun.angle);
+
         const bullet1 = this.makeBullet('player_bullet',
-            wingMan.x - gunPos.x, wingMan.y + gunPos.y,
+            wingMan.x + partGun.x, wingMan.y + partGun.y,
             "spaceshooter", 'laserBlue07',
             { x: 0 + gunAngle.x, y: -20 + gunAngle.y }
         )
         this.bulletList.push(bullet1);
-
-        const bullet2 = this.makeBullet('player_bullet',
-            wingMan.x + gunPos.x, wingMan.y + gunPos.y,
-            "spaceshooter", 'laserBlue07',
-            { x: 0 - gunAngle.x, y: - 20 + gunAngle.y }
-        );
-        this.bulletList.push(bullet2);
     }
 
     private onCanShoot(): void {
@@ -275,7 +272,8 @@ export class MainScene extends Phaser.Scene {
         );
 
         this.bulletList.push(bullet);
-        this.wingManList.forEach(wingMan => this.doWingManShoot(wingMan));
+        this.wingManList.filter(wingman => wingman.name === 'player_part')
+            .forEach(wingMan => this.doWingManShoot(wingMan));
     }
 
     private onCanSpawnEnemy() {
@@ -451,7 +449,7 @@ export class MainScene extends Phaser.Scene {
         const gunOffset0 = 5;
         const gunOffset = {
             x: Phaser.Math.FloatBetween(-gunOffset0, gunOffset0),
-            y: Phaser.Math.FloatBetween(-gunOffset0, gunOffset0)-10,
+            y: Phaser.Math.FloatBetween(-gunOffset0, gunOffset0) - 10,
         };
 
         const partContainer = this.add.container(x, y, []);
@@ -474,27 +472,25 @@ export class MainScene extends Phaser.Scene {
             .setScaleMode(Phaser.ScaleModes.NEAREST)
         );
 
-        const part: Part = this.matter.add.gameObject(partContainer, { shape: { type: 'circle', radius: 15 } });
+        const part: Part = <Phaser.GameObjects.Container>this.matter.add.gameObject(partContainer, { shape: { type: 'circle', radius: 18 } });
 
+        part.partWing = partWing;
+        part.partGun = partGun;
 
         this.wingManList.push(part);
         part.setName('part');
 
-        (<Phaser.Physics.Matter.Sprite>part)
+        (<any>part)
             .setMass(this.mass / 4)
             .setFrictionAir(0)
             .setFrictionStatic(0)
             .setFixedRotation()
             .setCollisionCategory(collisionCategory.PART)
-            .setCollidesWith(collisionCategory.WORLD | collisionCategory.PLAYER | collisionCategory.PART)
+            .setCollidesWith(collisionCategory.WORLD | collisionCategory.PLAYER | collisionCategory.PART | collisionCategory.PLAYER_PART)
             ;
 
-        (<Phaser.Physics.Matter.Sprite>part).setVelocity(0.1, 0);
+        (<any>part).setVelocity(0.1, 0);
 
-        // this.matter.add.joint(this.plane, part, this.linkageDistance, this.linkageStiffness, {
-        //     pointA: { x: -50, y: 0 },
-        //     damping: this.linkageDamping,
-        // });
     }
 
     private makeSpark(
@@ -569,20 +565,42 @@ export class MainScene extends Phaser.Scene {
         return explosion;
     }
 
-    // /**
-    //  * @todo change any back to Phaser.Physics.Matter.*
-    //  */
-    // private attachPart(parent: any, part: any, dx: number, dy: number) {
+    /**
+     * @todo change any back to Phaser.Physics.Matter.*
+     */
+    private attachPart(parent: any, part: any, dx: number, dy: number) {
 
-    // }
+        (<Phaser.Physics.Matter.Sprite>part).setVelocity(0);
+        part.setName('player_part');
+        part
+            .setCircle(15, {})
+            .setFixedRotation()
+            .setX(parent.x + dx)
+            .setY(parent.y + dy)
+            ;
+        part.onHitPart = this.onPlayerHitPart;
+        part
+            .setCollisionCategory(collisionCategory.PLAYER_PART)
+            ;
+        if (part.destroyTimer) part.destroyTimer.destroy();
 
-    // /**
-    //  * @todo change any back to Phaser.Physics.Matter.*
-    //  */
-    // private onPartHitPlayer(parent: any, part: any, contactPoints: { vertex: { x: number, y: number } }) {
-    //     const newPart = this.makePart();
-    //     this.attachPart(parent, newPart);
-    // }
+
+        this.matter.add.joint(parent, part, this.linkageDistance, this.linkageStiffness, {
+            pointA: { x: dx, y: dy },
+            damping: this.linkageDamping,
+        });
+    }
+
+    /**
+     * @todo change any back to Phaser.Physics.Matter.*
+     */
+    private onPlayerHitPart(parent: any, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) {
+        // debugger;
+        const displacement = new Phaser.Math.Vector2(part.x, part.y).subtract(
+            new Phaser.Math.Vector2(parent.x, parent.y)
+        );
+        this.attachPart(parent, part, displacement.x, displacement.y);
+    }
 
 
 
@@ -602,6 +620,26 @@ export class MainScene extends Phaser.Scene {
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyB.gameObject.name === 'player_bullet' && bodyA.gameObject.name === 'enemy') {
                     (<PlayerBullet>bodyB.gameObject).onHitEnemy(bodyA.gameObject, activeContacts);
+                }
+
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
+                if (bodyA.gameObject.name === 'player' && bodyB.gameObject.name === 'part') {
+                    (<Player>bodyA.gameObject).onHitPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
+                }
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                if (bodyB.gameObject.name === 'player' && bodyA.gameObject.name === 'part') {
+                    (<Player>bodyB.gameObject).onHitPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
+                }
+
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
+                if (bodyA.gameObject.name === 'player_part' && bodyB.gameObject.name === 'part') {
+                    (<Player>bodyA.gameObject).onHitPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
+                }
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                if (bodyB.gameObject.name === 'player_part' && bodyA.gameObject.name === 'part') {
+                    (<Player>bodyB.gameObject).onHitPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
                 }
             });
         });
