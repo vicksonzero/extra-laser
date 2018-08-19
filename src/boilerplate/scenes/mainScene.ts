@@ -19,10 +19,11 @@ interface PlayerBullet extends Phaser.Physics.Matter.Sprite {
 
 interface Part extends Phaser.GameObjects.Container {
     hp?: number;
-    maxHp?: number;
+    maxHP?: number;
     container?: PartContainer;
     partWing?: Phaser.GameObjects.GameObject;
     partGun?: Phaser.GameObjects.GameObject;
+    partHP?: HPBar;
     takeDamage?: (amount: number) => void;
     onHitPart?: (parent: any, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     destroyTimer?: Phaser.Time.TimerEvent;
@@ -41,13 +42,20 @@ interface Star extends Phaser.Physics.Matter.Sprite {
     birthdayEvent?: Phaser.Time.TimerEvent;
 }
 
+
+
 interface Enemy extends Phaser.Physics.Matter.Sprite {
     hp?: number;
-    maxHp?: number;
+    maxHP?: number;
     takeDamage?: (amount: number) => void;
     onHitPlayerPart?: (enemy: any, playerPart: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     tintFill?: boolean;
     undoTintEvent?: Phaser.Time.TimerEvent;
+}
+
+interface HPBar extends Phaser.GameObjects.Graphics {
+    barWidth?: number;
+    barHeight?: number;
 }
 
 enum collisionCategory {
@@ -79,6 +87,7 @@ export class MainScene extends Phaser.Scene {
 
     private startingParts = 1;
     private partSpawnChance = 0.1;
+    private partRadius = 18;
     private partHP = 6;
     private partAngle = 20;
     private partScatterSpeed = 3;
@@ -132,6 +141,14 @@ export class MainScene extends Phaser.Scene {
 
     create(): void {
         (<any>window).scene = this;
+
+        var config = {
+            key: 'explode',
+            frames: this.anims.generateFrameNumbers('explosion1', { start: 0, end: 23 }),
+            frameRate: 60
+        };
+        this.anims.create(config);
+
 
         this.matter.world
             .setBounds(0, 0, +this.sys.game.config.width, +this.sys.game.config.height)
@@ -303,7 +320,7 @@ export class MainScene extends Phaser.Scene {
     private spawnEnemy(x: number, y: number) {
         const enemy: Enemy = this.matter.add.sprite(x, y, "spaceshooterExt", 'spaceShips_002');
         enemy.hp = this.enemyHP;
-        enemy.maxHp = this.enemyHP;
+        enemy.maxHP = this.enemyHP;
         this.enemyList.push(enemy);
         enemy.setName('enemy');
         enemy.setTint(0xCCCCCC);
@@ -318,6 +335,7 @@ export class MainScene extends Phaser.Scene {
             .setCollisionCategory(collisionCategory.ENEMY)
             .setCollidesWith(collisionCategory.PLAYER_BULLET | collisionCategory.ENEMY_BULL | collisionCategory.PLAYER_PART)
             ;
+        // makeHPBar later
 
         enemy.setVelocity(0, 2);
         this.time.addEvent({
@@ -455,7 +473,7 @@ export class MainScene extends Phaser.Scene {
         const partContainer = this.add.container(x, y, []);
         const partWing = this.add.sprite(0, 0, 'spaceshooterExt', wingName);
         const partGun = this.add.sprite(0, 0, 'spaceshooter', gunName);
-
+        const partHP = this.makeHPBar(0, 0, this.partRadius * 1.2, 4);
 
         partContainer.add(partGun
             .setX(gunOffset.x)
@@ -474,10 +492,14 @@ export class MainScene extends Phaser.Scene {
             .setScaleMode(Phaser.ScaleModes.NEAREST)
         );
 
-        const part: Part = <Phaser.GameObjects.Container>this.matter.add.gameObject(partContainer, { shape: { type: 'circle', radius: 18 } });
+        partContainer.add(partHP
+        );
+
+        const part: Part = <Phaser.GameObjects.Container>this.matter.add.gameObject(partContainer, { shape: { type: 'circle', radius: this.partRadius } });
 
         part.partWing = partWing;
         part.partGun = partGun;
+        part.partHP = partHP;
 
         this.partList.push(part);
         // console.log(this.wingManList);
@@ -485,7 +507,7 @@ export class MainScene extends Phaser.Scene {
         part.setName('part');
 
         (<any>part)
-            .setMass(this.mass / 40)
+            .setMass(this.mass)
             .setFrictionAir(0)
             .setFrictionStatic(0)
             .setBounce(1)
@@ -512,6 +534,32 @@ export class MainScene extends Phaser.Scene {
             (<any>part).setVelocity(velocity.x, velocity.y);
         }
 
+    }
+
+    private makeHPBar(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics {
+        const bar: HPBar = this.add.graphics()
+        bar
+            .setX(x)
+            .setY(y)
+            ;
+        bar.barWidth = width;
+        bar.barHeight = height;
+        return bar;
+    }
+
+    private updateHPBar(bar: HPBar, hp: number, maxHP: number, en: number, maxEN: number) {
+        bar.clear();
+        const width = bar.barWidth;
+        const height = bar.barHeight;
+
+        const hue = (hp / maxHP * 120 / 360);
+        const color = Phaser.Display.Color.HSLToColor(hue, 1, 0.5).color;
+
+        bar.lineStyle(1, color, 1);
+        bar.strokeRect(-width / 2, -height / 2, width, height);
+
+        bar.fillStyle(color, 1);
+        bar.fillRect(-width / 2, -height / 2, hp / maxHP * width, height);
     }
 
     private makeSpark(
@@ -554,12 +602,6 @@ export class MainScene extends Phaser.Scene {
             'explosion1'
         );
 
-        var config = {
-            key: 'explode',
-            frames: this.anims.generateFrameNumbers('explosion1', { start: 0, end: 23 }),
-            frameRate: 60
-        };
-        this.anims.create(config);
         explosion.anims.play('explode');
 
         explosion.setName('explosion');
@@ -595,12 +637,6 @@ export class MainScene extends Phaser.Scene {
             'explosion1'
         );
 
-        var config = {
-            key: 'explode',
-            frames: this.anims.generateFrameNumbers('explosion1', { start: 0, end: 23 }),
-            frameRate: 60
-        };
-        this.anims.create(config);
         explosion.anims.play('explode');
 
         explosion.setName('explosion');
@@ -609,7 +645,7 @@ export class MainScene extends Phaser.Scene {
         (explosion
             .setOrigin(0.5, 0.4)
             .setScale(this.bulletScale * 1.5)
-            .setTint(0xFF0000)
+            .setTint(0xFF8888)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             // .setTint(color)
         );
@@ -672,7 +708,6 @@ export class MainScene extends Phaser.Scene {
     }
 
     private displayDamage(x: number, y: number, msg: string, duration: number) {
-;
         const toast = this.add.text(
             x, y,
             msg,
@@ -702,11 +737,12 @@ export class MainScene extends Phaser.Scene {
         part
             .setCircle(15, {})
             .setFixedRotation()
+            .setMass(this.mass / 400)
             .setX(parent.x + dx)
             .setY(parent.y + dy)
             ;
         part.hp = this.partHP;
-        part.maxHp = this.partHP;
+        part.maxHP = this.partHP;
         part.onHitPart = this.onPlayerHitPart;
         part
             .setCollisionCategory(collisionCategory.PLAYER_PART)
@@ -718,9 +754,10 @@ export class MainScene extends Phaser.Scene {
 
             const wing = part.partWing;
             wing.setTint(0xff0000);
+            this.updateHPBar(part.partHP, part.hp, part.maxHP, 0, 0);
 
             wing.undoTintEvent = this.time.addEvent({
-                delay: 100, loop: false, callback: () => {
+                delay: 200, loop: false, callback: () => {
                     wing.setTint(0xAAAAAA);
                 }
             });
@@ -933,6 +970,10 @@ export class MainScene extends Phaser.Scene {
         if (hasChanged) {
             console.log('updateDifficulty', this.enemySpawnRate, this.enemyHP);
 
+        } else {
+            if ((<any>window).debugDifficulty) {
+                console.log('updateDifficulty', this.enemySpawnRate, this.enemyHP);
+            }
         }
     }
 }
