@@ -32,26 +32,24 @@ export class Game extends Phaser.Game {
 window.onload = () => {
     var game = new Game(config);
 
-    window.addEventListener('resize', (event) => {
-        const ww = window.innerWidth / 360;
-        const hh = window.innerHeight / 640;
-
-        const min = Math.min(ww, hh);
-        console.log('resize', window.innerWidth, ww, window.innerHeight, hh, min);
-
-        game.canvas.style.width = `${min * 360}px`;
-        game.canvas.style.height = `${min * 640}px`;
-    });
-    console.log('hi');
-    
     // setTimeout(() => {
+    // }, 100);
+    function handleSizeUpdate(event?: Event) {
         const ww = window.innerWidth / 360;
         const hh = window.innerHeight / 640;
 
         const min = Math.min(ww, hh);
-        console.log('resize', window.innerWidth, ww, window.innerHeight, hh, min);
+        console.log('handleSizeUpdate', window.innerWidth, ww, window.innerHeight, hh, min);
 
         game.canvas.style.width = `${min * 360}px`;
         game.canvas.style.height = `${min * 640}px`;
-    // }, 100);
+    }
+
+    if (!window.location.search.includes('video')) {
+        window.addEventListener('resize', handleSizeUpdate);
+
+        console.log('init handleSizeUpdate');
+        handleSizeUpdate();
+    }
 };
+

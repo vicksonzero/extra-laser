@@ -67,10 +67,13 @@ export class MainScene extends Phaser.Scene {
     private drag: number = 0.2;
     private playerBulletRapid = 150;
 
-    private enemySpawnRate = 350;
     private starsSpawnRate = 1000;
 
 
+    private enemySpawnRate = 1000;
+    private enemyHP = 6;
+
+    private startingParts = 1;
     private partSpawnChance = 0.1;
     private partHP = 6;
     private partAngle = 20;
@@ -85,7 +88,7 @@ export class MainScene extends Phaser.Scene {
 
     // linkage
     private linkageDistance: number = 0.5;
-    private linkageStiffness: number = 0.6;
+    private linkageStiffness: number = 0.80;
     private linkageDamping: number = 0.01;
 
     // display objects
@@ -93,6 +96,8 @@ export class MainScene extends Phaser.Scene {
     private moveKeys: IMoveKeys;
 
     // display objects list
+    private toast: Phaser.GameObjects.Text;
+    private toastTween: Phaser.Tweens.Tween;
     private bulletList: PlayerBullet[] = [];
     private wingManList: any[] = []; /** @todo remove any */
     private enemyList: Enemy[] = [];
@@ -143,51 +148,15 @@ export class MainScene extends Phaser.Scene {
             ;
         this.player.onHitPart = this.onPlayerHitPart;
 
-        // const wing1 = this.matter.add.sprite(50, 300, "spaceshooter", 'playerShip2_blue');
-        // this.wingManList.push(wing1);
-        // wing1.setName('wing1');
-        // wing1
-        //     .setOrigin(0.5, 0.5)
-        //     .setScale(this.wingManScale)
-        //     .setScaleMode(Phaser.ScaleModes.NEAREST)
-        //     .setMass(this.mass / 4)
-        //     .setFrictionAir(this.drag)
-        //     .setFixedRotation()
-        //     .setCollisionCategory(collisionCategory.PLAYER)
-        //     .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
-        //     ;
-
-        // this.matter.add.joint(this.plane, wing1, this.linkageDistance, this.linkageStiffness, {
-        //     pointA: { x: -50, y: 0 },
-        //     damping: this.linkageDamping,
-        // });
-
-        // const wing2 = this.matter.add.sprite(250, 300, "spaceshooter", 'playerShip2_blue');
-        // this.wingManList.push(wing2);
-        // wing2.setName('wing2');
-        // wing2
-        //     .setOrigin(0.5, 0.5)
-        //     .setScale(this.wingManScale)
-        //     .setScaleMode(Phaser.ScaleModes.NEAREST)
-        //     .setMass(this.mass)
-        //     .setFrictionAir(this.drag)
-        //     .setFixedRotation()
-        //     .setCollisionCategory(collisionCategory.PLAYER)
-        //     .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
-
-        // this.matter.add.joint(this.plane, wing2, this.linkageDistance, this.linkageStiffness, {
-        //     pointA: { x: 50, y: 0 },
-        //     damping: this.linkageDamping,
-        // });
 
 
         this.shootTimerEvent = this.time.addEvent({ delay: this.playerBulletRapid, callback: this.onCanShoot, loop: true });
-        this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy, loop: true });
+        this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy });
         this.spawnStarsTimerEvent = this.time.addEvent({ delay: this.starsSpawnRate, callback: this.onCanSpawnStars, loop: true });
         this.initStars();
 
 
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < this.startingParts; i++) {
             this.makePart(
                 Phaser.Math.FloatBetween(0, +this.sys.game.config.width),
                 Phaser.Math.FloatBetween(0, +this.sys.game.config.height),
@@ -201,21 +170,12 @@ export class MainScene extends Phaser.Scene {
         this.registerCollisionEvents();
 
 
-        const tutorial = this.add.text((+this.sys.game.config.width) / 2, (+this.sys.game.config.height) / 2,
+        this.makeToast(
             `Extra Laser\n` +
             `\n` +
             `How to play:\n` +
             `Touch / Mouse / WASD`
-            , { color: '#FFFFFF', align: 'center' });
-        tutorial.setOrigin(0.5);
-
-        var tween = this.tweens.add({
-            targets: tutorial,
-            alpha: 0,
-            ease: 'Power1',
-            duration: 3000,
-            delay: 5000,
-        });
+        );
     }
 
     update(time: number, delta: number): void {
@@ -287,6 +247,9 @@ export class MainScene extends Phaser.Scene {
         const x = Phaser.Math.Between(shipWidth, +this.sys.game.config.width - shipWidth);
         const y = 0;
         this.spawnEnemy(x, y);
+
+        this.updateDifficulty();
+        this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy, loop: false });
     }
 
 
@@ -334,8 +297,8 @@ export class MainScene extends Phaser.Scene {
 
     private spawnEnemy(x: number, y: number) {
         const enemy: Enemy = this.matter.add.sprite(x, y, "spaceshooterExt", 'spaceShips_002');
-        enemy.hp = this.partHP;
-        enemy.maxHp = this.partHP;
+        enemy.hp = this.enemyHP;
+        enemy.maxHp = this.enemyHP;
         this.enemyList.push(enemy);
         enemy.setName('enemy');
         enemy.setTint(0xCCCCCC);
@@ -378,7 +341,7 @@ export class MainScene extends Phaser.Scene {
                     );
                 }
                 enemy.destroy();
-                this.cameras.main.shake(50, 0.01, false);
+                this.cameras.main.shake(50, 0.02, false);
 
                 this.enemyList.splice(this.enemyList.indexOf(enemy), 1);
             }
@@ -401,7 +364,6 @@ export class MainScene extends Phaser.Scene {
         const velocity = Phaser.Math.Rotate({ x: 0, y: -speed }, Phaser.Math.DegToRad(angle));
         // const velocity = { x: 0, y: -speed };
 
-        console.log('makeBullet', speed, angle, velocity);
 
         this.bulletList.push(bullet);
         (bullet
@@ -499,14 +461,16 @@ export class MainScene extends Phaser.Scene {
         part.partGun = partGun;
 
         this.wingManList.push(part);
+        // console.log(this.wingManList);
+
         part.setName('part');
 
         (<any>part)
-            .setMass(this.mass / 4)
+            .setMass(this.mass / 40)
             .setFrictionAir(0)
             .setFrictionStatic(0)
-            .setFixedRotation()
             .setBounce(1)
+            .setFixedRotation()
             .setCollisionCategory(collisionCategory.PART)
             .setCollidesWith(collisionCategory.WORLD | collisionCategory.PLAYER | collisionCategory.PART | collisionCategory.PLAYER_PART)
             ;
@@ -603,6 +567,27 @@ export class MainScene extends Phaser.Scene {
         return explosion;
     }
 
+    private makeToast(msg: string) {
+        if (!this.toast) {
+            this.toast = this.add.text(
+                (+this.sys.game.config.width) / 2,
+                (+this.sys.game.config.height) / 2,
+                msg,
+                { color: '#FFFFFF', align: 'center' }
+            );
+
+            this.toast.setOrigin(0.5);
+        }
+        this.
+            this.toastTween = this.tweens.add({
+                targets: this.toast,
+                alpha: 0,
+                ease: 'Power1',
+                duration: 3000,
+                delay: 5000,
+            });
+    }
+
     /**
      * @todo change any back to Phaser.Physics.Matter.*
      */
@@ -651,7 +636,7 @@ export class MainScene extends Phaser.Scene {
                 const activeContacts: any = pair.activeContacts;
 
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
+                // console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
                 if (bodyA.gameObject.name === 'player_bullet' && bodyB.gameObject.name === 'enemy') {
                     (<PlayerBullet>bodyA.gameObject).onHitEnemy(bodyB.gameObject, activeContacts);
                 }
@@ -661,7 +646,6 @@ export class MainScene extends Phaser.Scene {
                 }
 
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
                 if (bodyA.gameObject.name === 'player' && bodyB.gameObject.name === 'part') {
                     (<Player>bodyA.gameObject).onHitPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
                 }
@@ -671,7 +655,6 @@ export class MainScene extends Phaser.Scene {
                 }
 
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
                 if (bodyA.gameObject.name === 'player_part' && bodyB.gameObject.name === 'part') {
                     (<Player>bodyA.gameObject).onHitPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
                 }
@@ -744,6 +727,59 @@ export class MainScene extends Phaser.Scene {
             vy = Math.sin(angle) * maxVelocity;
             sprite.body.velocity.x = vx;
             sprite.body.velocity.y = vy;
+        }
+    }
+
+    private updateDifficulty() {
+        let newEnemyHP;
+        let newEnemySpawnRate;
+
+        const playerPartCount = this.wingManList.filter(wingman => wingman.name === 'player_part').length;
+        const combatLevel = (
+            playerPartCount * 1
+        );
+
+        const allowedEnemies = Math.log(combatLevel) / Math.log(1.5);
+        // console.log('updateDifficulty', this.enemyList.length);
+
+        if (this.enemyList.length >= allowedEnemies) {
+            return;
+        }
+
+        // if (playerPartCount <= 5) {
+        //     newEnemyHP = 6;
+        // } else if (playerPartCount <= 10) {
+        //     newEnemyHP = 8;
+        // } else if (playerPartCount <= 13) {
+        //     newEnemyHP = 12;
+        // } else {
+        //     newEnemyHP = 16 + (playerPartCount - 13) * 4;
+        // }
+
+
+        // if (playerPartCount <= 10) {
+        //     newEnemySpawnRate = 1000 - (playerPartCount - 1) * 100;
+        // } else {
+        //     newEnemySpawnRate = 350;
+        // }
+
+        newEnemySpawnRate = this.enemySpawnRate - 50;
+        newEnemyHP = this.enemyHP + 0.01;
+
+        let hasChanged = false;
+
+        if (this.enemyHP != newEnemyHP) {
+            this.enemyHP = newEnemyHP;
+            hasChanged = true;
+        }
+        if (this.enemySpawnRate != newEnemySpawnRate) {
+            this.enemySpawnRate = newEnemySpawnRate;
+            hasChanged = true;
+        }
+
+        if (hasChanged) {
+            console.log('updateDifficulty', this.enemySpawnRate, this.enemyHP);
+
         }
     }
 }
