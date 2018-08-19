@@ -69,7 +69,13 @@ export class MainScene extends Phaser.Scene {
 
     private enemySpawnRate = 350;
     private starsSpawnRate = 1000;
+
+
+    private partSpawnChance = 0.1;
     private partHP = 6;
+    private partAngle = 20;
+    private partScatterSpeed = 3;
+    private partScatterLife = 10 * 1000;
 
     // sizes
     private playerScale: number = 0.3;
@@ -79,7 +85,7 @@ export class MainScene extends Phaser.Scene {
 
     // linkage
     private linkageDistance: number = 0.5;
-    private linkageStiffness: number = 0.2;
+    private linkageStiffness: number = 0.6;
     private linkageDamping: number = 0.01;
 
     // display objects
@@ -176,15 +182,16 @@ export class MainScene extends Phaser.Scene {
 
 
         this.shootTimerEvent = this.time.addEvent({ delay: this.playerBulletRapid, callback: this.onCanShoot, loop: true });
-        // this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy, loop: true });
-        // this.spawnStarsTimerEvent = this.time.addEvent({ delay: this.starsSpawnRate, callback: this.onCanSpawnStars, loop: true });
+        this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy, loop: true });
+        this.spawnStarsTimerEvent = this.time.addEvent({ delay: this.starsSpawnRate, callback: this.onCanSpawnStars, loop: true });
         this.initStars();
 
 
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 2; i++) {
             this.makePart(
                 Phaser.Math.FloatBetween(0, +this.sys.game.config.width),
                 Phaser.Math.FloatBetween(0, +this.sys.game.config.height),
+                true
             )
         }
 
@@ -254,12 +261,11 @@ export class MainScene extends Phaser.Scene {
 
     private doWingManShoot(wingMan: Part) {
         const partGun = wingMan.partGun as Phaser.GameObjects.Sprite;
-        const gunAngle = Phaser.Math.Rotate({ x: 0, y: 0 }, partGun.angle);
 
         const bullet1 = this.makeBullet('player_bullet',
             wingMan.x + partGun.x, wingMan.y + partGun.y,
             "spaceshooter", 'laserBlue07',
-            { x: 0 + gunAngle.x, y: -20 + gunAngle.y }
+            20, partGun.angle
         )
         this.bulletList.push(bullet1);
     }
@@ -268,7 +274,7 @@ export class MainScene extends Phaser.Scene {
         const bullet = this.makeBullet('player_bullet',
             this.player.x, this.player.y - 20,
             "spaceshooter", 'laserBlue07',
-            { x: 0, y: -20 }
+            20, 0
         );
 
         this.bulletList.push(bullet);
@@ -365,6 +371,12 @@ export class MainScene extends Phaser.Scene {
             if (enemy.hp <= 0) {
                 if (enemy.undoTintEvent) enemy.undoTintEvent.destroy();
                 this.makeExplosion1(enemy.x, enemy.y);
+                if (Math.random() <= this.partSpawnChance) {
+                    this.makePart(
+                        enemy.x, enemy.y,
+                        true
+                    );
+                }
                 enemy.destroy();
                 this.cameras.main.shake(50, 0.01, false);
 
@@ -377,7 +389,7 @@ export class MainScene extends Phaser.Scene {
         name: string,
         x: number, y: number,
         key: string, frameName: string,
-        velocity: { x: number, y: number }
+        speed: number, angle: number
     ): PlayerBullet {
         const bullet = <PlayerBullet>this.matter.add.sprite(
             x, y,
@@ -385,8 +397,15 @@ export class MainScene extends Phaser.Scene {
         );
         bullet.setName(name);
 
+
+        const velocity = Phaser.Math.Rotate({ x: 0, y: -speed }, Phaser.Math.DegToRad(angle));
+        // const velocity = { x: 0, y: -speed };
+
+        console.log('makeBullet', speed, angle, velocity);
+
         this.bulletList.push(bullet);
         (bullet
+            .setAngle(angle)
             .setOrigin(0.5, 0.5)
             .setScale(this.bulletScale)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
@@ -420,7 +439,8 @@ export class MainScene extends Phaser.Scene {
     }
 
     private makePart(
-        x: number, y: number
+        x: number, y: number,
+        doScatter: boolean
     ) {
         const wingName = <string>Phaser.Utils.Array.GetRandom([
             'spaceParts_001',
@@ -460,6 +480,7 @@ export class MainScene extends Phaser.Scene {
         partContainer.add(partGun
             .setX(gunOffset.x)
             .setY(gunOffset.y)
+            .setAngle(Phaser.Math.FloatBetween(-this.partAngle, this.partAngle))
             .setOrigin(0.5, 0.5)
             .setScale(this.wingManScale * 1.5)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
@@ -485,11 +506,28 @@ export class MainScene extends Phaser.Scene {
             .setFrictionAir(0)
             .setFrictionStatic(0)
             .setFixedRotation()
+            .setBounce(1)
             .setCollisionCategory(collisionCategory.PART)
             .setCollidesWith(collisionCategory.WORLD | collisionCategory.PLAYER | collisionCategory.PART | collisionCategory.PLAYER_PART)
             ;
 
-        (<any>part).setVelocity(0.1, 0);
+
+
+        part.destroyTimer = this.time.addEvent({
+            delay: this.partScatterLife, loop: false, callback: () => {
+                destroyPart();
+            }
+        });
+
+        const destroyPart = () => {
+            part.destroyTimer.destroy();
+            part.destroy();
+        }
+
+        if (doScatter) {
+            const velocity = Phaser.Math.Rotate({ x: 0, y: this.partScatterSpeed }, Phaser.Math.FloatBetween(0, Phaser.Math.PI2));
+            (<any>part).setVelocity(velocity.x, velocity.y);
+        }
 
     }
 
