@@ -105,11 +105,11 @@ export class MainScene extends Phaser.Scene {
     private enemyShootRate = 1000;
     private enemyBulletSpeed = 3.5;
 
-    private startingParts = 1;
+    private startingParts = 10;
     private partSpawnChance = 0.1;
     private partRadius = 18;
     private partHP = 10;
-    private partAngle = 20;
+    private bodyAngle = 20;
     private partScatterSpeed = 3;
     private partScatterLife = 10 * 1000;
 
@@ -137,6 +137,7 @@ export class MainScene extends Phaser.Scene {
     private bulletList: PlayerBullet[] = [];
     private partList: any[] = []; /** @todo remove any */
     private enemyList: Enemy[] = [];
+    private constraintList: MatterJS.Constraint[] = [];
 
     // timers
     private shootTimerEvent: Phaser.Time.TimerEvent;
@@ -698,7 +699,7 @@ export class MainScene extends Phaser.Scene {
         partContainer.add(partGun
             .setX(gunOffset.x)
             .setY(gunOffset.y)
-            .setAngle(Phaser.Math.FloatBetween(-this.partAngle, this.partAngle))
+            .setAngle(Phaser.Math.FloatBetween(-this.bodyAngle, this.bodyAngle))
             .setOrigin(0.5, 0.5)
             .setScale(this.wingManScale * 1.5)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
@@ -1029,23 +1030,46 @@ export class MainScene extends Phaser.Scene {
                 if (part.undoTintEvent) part.undoTintEvent.destroy();
                 this.makeExplosion2(part.x, part.y);
                 this.partList.splice(this.partList.indexOf(part), 1);
+
+                this.recursiveDetachPart(part);
                 part.destroy();
                 this.cameras.main.shake(100, 0.04, false);
-
             }
         }
 
         if (part.destroyTimer) part.destroyTimer.destroy();
-        this.matter.add.joint(parent, part, this.linkageDistance, this.linkageStiffness, {
+        this.constraintList.push(this.matter.add.constraint(parent, part, this.linkageDistance, this.linkageStiffness, {
             pointA: { x: dx, y: dy },
             damping: this.linkageDamping,
-        });
+        }));
 
         this.displayToast(part.x, part.y, `${this.partList.filter(part => part.name === 'player_part').length}: Extra Gun`, 5000);
     }
 
-    private destroyPlayerPart(part: Part) {
+    private recursiveDetachPart(part: Part) {
+        const byeByeList = this.constraintList.filter((constraint: any) => constraint.bodyA.id === part.body.id);
+        byeByeList.forEach((constraint: any) => this.recursiveDetachPart(constraint.bodyB.gameObject));
 
+        const constraint = this.constraintList.find((constraint: any) => constraint.bodyB.id === part.body.id);
+        const bodyA: Part = (<any>constraint).bodyA;
+        const bodyB: Part = (<any>constraint).bodyB;
+        this.matter.world.removeConstraint(constraint, false);
+        this.constraintList.splice(this.constraintList.indexOf(constraint), 1);
+
+        (<any>part)
+            .setName('part')
+            .setMass(this.mass)
+            .setFrictionAir(0)
+            .setFrictionStatic(0)
+            .setBounce(1)
+            .setFixedRotation()
+            .setCollisionCategory(collisionCategory.PART)
+            .setCollidesWith(collisionCategory.WORLD | collisionCategory.PLAYER | collisionCategory.PART | collisionCategory.PLAYER_PART)
+            ;
+
+
+        const velocity = Phaser.Math.Rotate({ x: 0, y: this.partScatterSpeed }, Phaser.Math.FloatBetween(0, Math.PI * 2));
+        (<any>part).setVelocity(velocity.x, velocity.y);
     }
 
     /**
@@ -1056,7 +1080,7 @@ export class MainScene extends Phaser.Scene {
         const displacement = new Phaser.Math.Vector2(part.x, part.y).subtract(
             new Phaser.Math.Vector2(parent.x, parent.y)
         );
-        debugger;
+
         this.attachPart(parent, part, displacement.x, displacement.y);
     }
 
