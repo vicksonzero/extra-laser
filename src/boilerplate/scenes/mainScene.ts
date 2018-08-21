@@ -64,7 +64,8 @@ interface Enemy extends Phaser.Physics.Matter.Sprite {
 }
 
 interface EnemyBullet extends Phaser.Physics.Matter.Sprite {
-    onHitPlayer?: (player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+    onHitPlayerPart?: (bullet: any, playerPart: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+    onHitPlayer?: (bullet: any, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     birthdayEvent?: Phaser.Time.TimerEvent;
 }
 
@@ -78,7 +79,7 @@ enum collisionCategory {
     PLAYER = 1 << 1,
     PLAYER_BULLET = 1 << 2,
     ENEMY = 1 << 3,
-    PLAYER_BULLET = 1 << 4,
+    ENEMY_BULLET = 1 << 4,
     STAR = 1 << 5,
     PART = 1 << 6,
     PLAYER_PART = 1 << 7,
@@ -379,7 +380,7 @@ export class MainScene extends Phaser.Scene {
         const bullet = this.makeEnemyBullet('enemy_bullet',
             enemy.x, enemy.y + 20,
             "spaceshooter", 'laserRed07',
-            20, 180
+            this.enemyBulletSpeed, 180
         );
 
         this.bulletList.push(bullet);
@@ -492,7 +493,7 @@ export class MainScene extends Phaser.Scene {
 
         enemy.onHitPlayerPart = (enemy: any, playerPart: Part, contactPoints: { vertex: { x: number, y: number } }[]) => {
             this.displayDamage(playerPart.x, playerPart.y, '-1', 3000);
-            playerPart.takeDamage(4);
+            playerPart.takeDamage(1);
 
             this.displayDamage(enemy.x, enemy.y, '-4', 3000);
             if (enemy.takeDamage) enemy.takeDamage(1);
@@ -502,11 +503,11 @@ export class MainScene extends Phaser.Scene {
             });
         };
         enemy.onHitPlayer = (enemy: any, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => {
-            this.displayDamage(player.x, player.y, '-4', 3000);
-            player.takeDamage(4);
+            this.displayDamage(player.x, player.y, '-1', 3000);
+            player.takeDamage(1);
 
-            this.displayDamage(enemy.x, enemy.y, '-4', 3000);
-            if (enemy.takeDamage) enemy.takeDamage(4);
+            this.displayDamage(enemy.x, enemy.y, '-1', 3000);
+            if (enemy.takeDamage) enemy.takeDamage(1);
 
             contactPoints.forEach((contactPoint) => {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
@@ -614,9 +615,19 @@ export class MainScene extends Phaser.Scene {
             this.bulletList.splice(this.bulletList.indexOf(bullet), 1)
         }
 
-        bullet.onHitPlayer = (player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => {
+        bullet.onHitPlayer = (bullet: EnemyBullet, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => {
             this.displayDamage(player.x, player.y, '-1', 3000);
             if (player.takeDamage) player.takeDamage(1);
+            contactPoints.forEach((contactPoint) => {
+                this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
+            });
+            destroyBullet();
+        }
+        
+
+        bullet.onHitPlayerPart = (bullet: EnemyBullet, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => {
+            this.displayDamage(part.x, part.y, '-1', 3000);
+            if (part.takeDamage) part.takeDamage(1);
             contactPoints.forEach((contactPoint) => {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
             });
@@ -1057,7 +1068,7 @@ export class MainScene extends Phaser.Scene {
                 if (bodyB.gameObject.name === 'enemy' && bodyA.gameObject.name === 'player_part') {
                     (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
                 }
-
+                
                 // enemy vs player
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'enemy' && bodyB.gameObject.name === 'player') {
@@ -1068,6 +1079,25 @@ export class MainScene extends Phaser.Scene {
                     (<Enemy>bodyB.gameObject).onHitPlayer(bodyB.gameObject, bodyA.gameObject, activeContacts);
                 }
 
+                // enemy_bullet vs player
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                if (bodyA.gameObject.name === 'enemy_bullet' && bodyB.gameObject.name === 'player') {
+                    (<Enemy>bodyA.gameObject).onHitPlayer(bodyA.gameObject, bodyB.gameObject, activeContacts);
+                }
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                if (bodyB.gameObject.name === 'enemy_bullet' && bodyA.gameObject.name === 'player') {
+                    (<Enemy>bodyB.gameObject).onHitPlayer(bodyB.gameObject, bodyA.gameObject, activeContacts);
+                }
+                
+                // enemy_bullet vs player_part
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                if (bodyA.gameObject.name === 'enemy_bullet' && bodyB.gameObject.name === 'player_part') {
+                    (<Enemy>bodyA.gameObject).onHitPlayerPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
+                }
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                if (bodyB.gameObject.name === 'enemy_bullet' && bodyA.gameObject.name === 'player_part') {
+                    (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
+                }
                 // player vs part
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'player' && bodyB.gameObject.name === 'part') {
