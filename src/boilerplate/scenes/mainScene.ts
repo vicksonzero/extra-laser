@@ -123,7 +123,7 @@ export class MainScene extends Phaser.Scene {
     private enemyBulletSpeed = 3.5;
 
     private startingParts = 1;
-    private partSpawnChance = 0.18;
+    private partSpawnChance = 0.21;
     private partRadius = 18;
     private partHP = 10;
     private bodyAngle = 20;
@@ -182,7 +182,10 @@ export class MainScene extends Phaser.Scene {
         { wait: 8000, desc: '', allowedEnemies: 5, enemySpawnInterval: 1000, enemyHP: 9 },
         { wait: 5000, desc: '', allowedEnemies: 7, enemySpawnInterval: 800, enemyHP: 11 },
         { wait: 7000, desc: '', allowedEnemies: 9, enemySpawnInterval: 700, enemyHP: 15 },
-        { wait: 10000, desc: '', allowedEnemies: 12, enemySpawnInterval: 600, enemyHP: 19 },
+        { wait: 10000, desc: '', allowedEnemies: 12, enemySpawnInterval: 500, enemyHP: 15 },
+        { wait: 10000, desc: '', allowedEnemies: 12, enemySpawnInterval: 500, enemyHP: 17 },
+        { wait: 10000, desc: '', allowedEnemies: 15, enemySpawnInterval: 700, enemyHP: 19 },
+        { wait: 10000, desc: '', allowedEnemies: 15, enemySpawnInterval: 700, enemyHP: 19 },
         { wait: 20000, desc: 'end', end: true },
     ];
 
