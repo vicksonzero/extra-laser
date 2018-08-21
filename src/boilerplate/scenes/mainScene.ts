@@ -20,7 +20,7 @@ interface Player extends Phaser.GameObjects.Container {
 }
 interface PlayerBullet extends Phaser.Physics.Matter.Sprite {
     onHitEnemy?: (enemy: Enemy, contactPoints: { vertex: { x: number, y: number } }[]) => void;
-    birthdayEvent?: Phaser.Time.TimerEvent;
+    bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
 interface Part extends Phaser.GameObjects.Container {
@@ -42,10 +42,10 @@ interface PartContainer extends Phaser.GameObjects.Container {
 
 
 interface Effect extends Phaser.GameObjects.Sprite {
-    birthdayEvent?: Phaser.Time.TimerEvent;
+    bowOutEvent?: Phaser.Time.TimerEvent;
 }
 interface Star extends Phaser.Physics.Matter.Sprite {
-    birthdayEvent?: Phaser.Time.TimerEvent;
+    bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
 
@@ -61,12 +61,13 @@ interface Enemy extends Phaser.Physics.Matter.Sprite {
     tintFill?: boolean;
     undoTintEvent?: Phaser.Time.TimerEvent;
     canShootEvent?: Phaser.Time.TimerEvent;
+    bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
 interface EnemyBullet extends Phaser.Physics.Matter.Sprite {
     onHitPlayerPart?: (bullet: any, playerPart: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     onHitPlayer?: (bullet: any, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => void;
-    birthdayEvent?: Phaser.Time.TimerEvent;
+    bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
 interface HPBar extends Phaser.GameObjects.Graphics {
@@ -130,7 +131,8 @@ export class MainScene extends Phaser.Scene {
     // display objects list
     private title: Phaser.GameObjects.Text;
     private powerMeter: Phaser.GameObjects.Text;
-    private debugMeter: Phaser.GameObjects.Text;
+    private debugLabel: Phaser.GameObjects.Text;
+    private debugListLabel: Phaser.GameObjects.Text;
     private titleTween: Phaser.Tweens.Tween;
     private bulletList: PlayerBullet[] = [];
     private partList: any[] = []; /** @todo remove any */
@@ -140,11 +142,14 @@ export class MainScene extends Phaser.Scene {
     private shootTimerEvent: Phaser.Time.TimerEvent;
     private spawnEnemyTimerEvent: Phaser.Time.TimerEvent;
     private spawnStarsTimerEvent: Phaser.Time.TimerEvent;
+    private difficultyTimerEvent: Phaser.Time.TimerEvent;
 
     // gameFlow
     private gameIsOver = false;
     private score = 0;
     private powerLevel = 0;
+    private killPerSecond = 0;
+    private killCount: number[] = [0];
 
     constructor() {
         super({
@@ -156,6 +161,7 @@ export class MainScene extends Phaser.Scene {
             'onCanSpawnEnemy',
             'onCanSpawnStars',
             'onPlayerHitPart',
+            'onMetrics',
         ]);
     }
 
@@ -233,7 +239,7 @@ export class MainScene extends Phaser.Scene {
                 (<any>this.player)
                     .setCollisionCategory(0)
                 // .setPosition(-1000, -1000);
-                this.cameras.main.shake(3000, 0.04, false);
+                this.cameras.main.shake(1000, 0.04, false);
             }
         }
 
@@ -242,6 +248,7 @@ export class MainScene extends Phaser.Scene {
         this.shootTimerEvent = this.time.addEvent({ delay: this.playerBulletRapid, callback: this.onCanShoot, loop: true });
         this.spawnEnemyTimerEvent = this.time.addEvent({ delay: this.enemySpawnRate, callback: this.onCanSpawnEnemy });
         this.spawnStarsTimerEvent = this.time.addEvent({ delay: this.starsSpawnRate, callback: this.onCanSpawnStars, loop: true });
+        this.difficultyTimerEvent = this.time.addEvent({ delay: 1000, callback: this.onMetrics, loop: true });
         this.initStars();
 
 
@@ -272,7 +279,7 @@ export class MainScene extends Phaser.Scene {
             { color: '#FFFFFF', align: 'left' }
         );
 
-        this.debugMeter = this.add.text(
+        this.debugLabel = this.add.text(
             10, 30,
             'Debug:',
             { color: '#FF0000', align: 'left', fontSize: '14px' }
@@ -367,6 +374,14 @@ export class MainScene extends Phaser.Scene {
         }
     }
 
+    private onMetrics() {
+        if (this.killCount.length > 10) this.killCount.shift();
+        this.killPerSecond = this.killCount.reduce((sum, v) => sum + v, 0) / Math.min(10, this.time.now / 1000);
+        console.log('killPerSecond', this.killPerSecond);
+
+        this.killCount.push(0);
+    }
+
     private onCanSpawnStars() {
         const shipWidth = 50;
         const x = Phaser.Math.Between(0, +this.sys.game.config.width);
@@ -374,12 +389,12 @@ export class MainScene extends Phaser.Scene {
         this.spawnStar(x, y);
     }
 
-        
-    private onEnemyCanShoot(enemy:Enemy): void {
+
+    private onEnemyCanShoot(enemy: Enemy): void {
         if (this.gameIsOver) return;
         const bullet = this.makeEnemyBullet('enemy_bullet',
             enemy.x, enemy.y + 20,
-            "spaceshooter", 'laserRed07',
+            "spaceshooter", 'laserRed05',
             this.enemyBulletSpeed, 180
         );
 
@@ -451,14 +466,15 @@ export class MainScene extends Phaser.Scene {
         // makeHPBar later
 
         enemy.setVelocity(0, 2);
-        
-        enemy.canShootEvent = this.time.addEvent({ delay: this.enemyShootRate, callback: ()=>this.onEnemyCanShoot(enemy), loop: true });
-        
-        this.time.addEvent({
+
+        enemy.canShootEvent = this.time.addEvent({ delay: this.enemyShootRate, callback: () => this.onEnemyCanShoot(enemy), loop: true });
+
+        enemy.bowOutEvent = this.time.addEvent({
             delay: 20 * 1000, loop: false, callback: () => {
                 enemy.canShootEvent.destroy();
+                enemy.bowOutEvent.destroy();
+                this.enemyList.splice(this.enemyList.indexOf(enemy), 1);
                 enemy.destroy();
-                this.bulletList.splice(this.bulletList.indexOf(enemy), 1);
             }
         });
         enemy.takeDamage = (amount: number) => {
@@ -482,32 +498,32 @@ export class MainScene extends Phaser.Scene {
                         true
                     );
                 }
-                
+                enemy.bowOutEvent.destroy();
                 enemy.canShootEvent.destroy();
+                this.enemyList.splice(this.enemyList.indexOf(enemy), 1);
+                this.killCount[this.killCount.length - 1]++;
                 enemy.destroy();
                 this.cameras.main.shake(50, 0.02, false);
-
-                this.enemyList.splice(this.enemyList.indexOf(enemy), 1);
             }
         }
 
         enemy.onHitPlayerPart = (enemy: any, playerPart: Part, contactPoints: { vertex: { x: number, y: number } }[]) => {
-            this.displayDamage(playerPart.x, playerPart.y, '-1', 3000);
-            playerPart.takeDamage(1);
+            this.displayDamage(playerPart.x, playerPart.y, '-3', 3000);
+            playerPart.takeDamage(3);
 
             this.displayDamage(enemy.x, enemy.y, '-4', 3000);
-            if (enemy.takeDamage) enemy.takeDamage(1);
+            if (enemy.takeDamage) enemy.takeDamage(4);
 
             contactPoints.forEach((contactPoint) => {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
             });
         };
         enemy.onHitPlayer = (enemy: any, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => {
-            this.displayDamage(player.x, player.y, '-1', 3000);
-            player.takeDamage(1);
+            this.displayDamage(player.x, player.y, '-6', 3000);
+            player.takeDamage(6);
 
-            this.displayDamage(enemy.x, enemy.y, '-1', 3000);
-            if (enemy.takeDamage) enemy.takeDamage(1);
+            this.displayDamage(enemy.x, enemy.y, '-4', 3000);
+            if (enemy.takeDamage) enemy.takeDamage(4);
 
             contactPoints.forEach((contactPoint) => {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
@@ -544,20 +560,22 @@ export class MainScene extends Phaser.Scene {
             .setVelocity(velocity.x, velocity.y)
             .setSensor(true)
             .setFixedRotation()
+            .setFrictionAir(0)
+            .setFrictionStatic(0)
             .setCollisionCategory(collisionCategory.PLAYER_BULLET)
             .setCollidesWith(collisionCategory.ENEMY | collisionCategory.ENEMY_BULLET)
         );
 
-        bullet.birthdayEvent = this.time.addEvent({
+        bullet.bowOutEvent = this.time.addEvent({
             delay: 1000, loop: false, callback: () => {
                 destroyBullet();
             }
         });
 
         const destroyBullet = () => {
-            bullet.birthdayEvent.destroy();
+            bullet.bowOutEvent.destroy();
+            this.bulletList.splice(this.bulletList.indexOf(bullet), 1);
             bullet.destroy();
-            this.bulletList.splice(this.bulletList.indexOf(bullet), 1)
         }
 
         bullet.onHitEnemy = (enemy: Enemy, contactPoints: { vertex: { x: number, y: number } }[]) => {
@@ -591,7 +609,7 @@ export class MainScene extends Phaser.Scene {
 
         this.bulletList.push(bullet);
         (bullet
-            .setAlpha(0.9)
+            .setAlpha(1)
             .setAngle(angle)
             .setOrigin(0.5, 0.5)
             .setScale(this.bulletScale)
@@ -599,35 +617,37 @@ export class MainScene extends Phaser.Scene {
             .setVelocity(velocity.x, velocity.y)
             .setSensor(true)
             .setFixedRotation()
+            .setFrictionAir(0)
+            .setFrictionStatic(0)
             .setCollisionCategory(collisionCategory.ENEMY_BULLET)
             .setCollidesWith(collisionCategory.PLAYER | collisionCategory.PLAYER_PART) // collisionCategory.PLAYER_BULLET_SOLID
         );
 
-        bullet.birthdayEvent = this.time.addEvent({
-            delay: 1000, loop: false, callback: () => {
+        bullet.bowOutEvent = this.time.addEvent({
+            delay: 10 * 1000, loop: false, callback: () => {
                 destroyBullet();
             }
         });
 
         const destroyBullet = () => {
-            bullet.birthdayEvent.destroy();
+            bullet.bowOutEvent.destroy();
+            this.bulletList.splice(this.bulletList.indexOf(bullet), 1);
             bullet.destroy();
-            this.bulletList.splice(this.bulletList.indexOf(bullet), 1)
         }
 
         bullet.onHitPlayer = (bullet: EnemyBullet, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => {
-            this.displayDamage(player.x, player.y, '-1', 3000);
-            if (player.takeDamage) player.takeDamage(1);
+            this.displayDamage(player.x, player.y, '-3', 3000);
+            if (player.takeDamage) player.takeDamage(3);
             contactPoints.forEach((contactPoint) => {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
             });
             destroyBullet();
         }
-        
+
 
         bullet.onHitPlayerPart = (bullet: EnemyBullet, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => {
-            this.displayDamage(part.x, part.y, '-1', 3000);
-            if (part.takeDamage) part.takeDamage(1);
+            this.displayDamage(part.x, part.y, '-2', 3000);
+            if (part.takeDamage) part.takeDamage(2);
             contactPoints.forEach((contactPoint) => {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
             });
@@ -726,6 +746,7 @@ export class MainScene extends Phaser.Scene {
 
         const destroyPart = () => {
             part.destroyTimer.destroy();
+            this.partList.splice(this.partList.indexOf(part), 1);
             part.destroy();
         }
 
@@ -779,14 +800,14 @@ export class MainScene extends Phaser.Scene {
             .setTint(color)
         );
 
-        spark.birthdayEvent = this.time.addEvent({
+        spark.bowOutEvent = this.time.addEvent({
             delay: 50, loop: false, callback: () => {
                 destroySpark();
             }
         });
 
         const destroySpark = () => {
-            spark.birthdayEvent.destroy();
+            spark.bowOutEvent.destroy();
             spark.destroy();
         }
 
@@ -814,14 +835,14 @@ export class MainScene extends Phaser.Scene {
             // .setTint(color)
         );
 
-        explosion.birthdayEvent = this.time.addEvent({
+        explosion.bowOutEvent = this.time.addEvent({
             delay: 500, loop: false, callback: () => {
                 destroySpark();
             }
         });
 
         const destroySpark = () => {
-            explosion.birthdayEvent.destroy();
+            explosion.bowOutEvent.destroy();
             explosion.destroy();
         }
 
@@ -850,14 +871,14 @@ export class MainScene extends Phaser.Scene {
             // .setTint(color)
         );
 
-        explosion.birthdayEvent = this.time.addEvent({
+        explosion.bowOutEvent = this.time.addEvent({
             delay: 500, loop: false, callback: () => {
                 destroySpark();
             }
         });
 
         const destroySpark = () => {
-            explosion.birthdayEvent.destroy();
+            explosion.bowOutEvent.destroy();
             explosion.destroy();
         }
 
@@ -885,7 +906,7 @@ export class MainScene extends Phaser.Scene {
             // .setTint(color)
         );
 
-        explosion.birthdayEvent = this.time.addEvent({
+        explosion.bowOutEvent = this.time.addEvent({
             delay: 100, loop: false, callback: () => {
                 destroySpark();
                 this.displayTitle(
@@ -899,7 +920,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         const destroySpark = () => {
-            explosion.birthdayEvent.destroy();
+            explosion.bowOutEvent.destroy();
             explosion.destroy();
         }
 
@@ -1035,6 +1056,7 @@ export class MainScene extends Phaser.Scene {
         const displacement = new Phaser.Math.Vector2(part.x, part.y).subtract(
             new Phaser.Math.Vector2(parent.x, parent.y)
         );
+        debugger;
         this.attachPart(parent, part, displacement.x, displacement.y);
     }
 
@@ -1068,7 +1090,7 @@ export class MainScene extends Phaser.Scene {
                 if (bodyB.gameObject.name === 'enemy' && bodyA.gameObject.name === 'player_part') {
                     (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
                 }
-                
+
                 // enemy vs player
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'enemy' && bodyB.gameObject.name === 'player') {
@@ -1088,7 +1110,7 @@ export class MainScene extends Phaser.Scene {
                 if (bodyB.gameObject.name === 'enemy_bullet' && bodyA.gameObject.name === 'player') {
                     (<Enemy>bodyB.gameObject).onHitPlayer(bodyB.gameObject, bodyA.gameObject, activeContacts);
                 }
-                
+
                 // enemy_bullet vs player_part
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'enemy_bullet' && bodyB.gameObject.name === 'player_part') {
@@ -1186,6 +1208,7 @@ export class MainScene extends Phaser.Scene {
     }
 
     private updateDifficulty() {
+
         let newEnemyHP;
         let newEnemySpawnRate;
 
@@ -1194,13 +1217,16 @@ export class MainScene extends Phaser.Scene {
             playerPartCount * 1
         );
 
-        const allowedEnemies = Math.max(1, Math.log(combatLevel) / Math.log(1.5));
+        const allowedEnemies = Math.ceil(combatLevel * 0.7);
         // console.log('updateDifficulty', this.enemyList.length);
 
         this.powerLevel = combatLevel * 150 + allowedEnemies * 100;
-        const powerStr = (this.powerLevel < 9000 ? Math.floor(this.powerLevel) : 'over 9000')
+
+        const powerStr = (this.powerLevel < 9000 ? Math.floor(this.powerLevel) : 'over 9000');
         this.powerMeter.setText(`Power: ${powerStr}`);
 
+        this.debugLabel.setText(`${allowedEnemies} ${this.enemySpawnRate}, ${this.enemyHP.toFixed(2)}\n` +
+            `${this.enemyList.length}\n${this.bulletList.length}\n${this.partList.length}`);
         if (this.enemyList.length >= allowedEnemies) {
             return;
         }
@@ -1223,15 +1249,10 @@ export class MainScene extends Phaser.Scene {
         // }
 
         newEnemyHP = this.enemyHP + combatLevel / 90;
-        newEnemySpawnRate = this.enemySpawnRate - 50;
-        if (newEnemySpawnRate < 300) {
-            if (combatLevel < 20) {
-                newEnemySpawnRate = 300;
-            } else {
-                newEnemySpawnRate = 200;
-                newEnemyHP += 0.04;
-            }
-            newEnemyHP += 0.08;
+        newEnemySpawnRate = this.enemySpawnRate - 10;
+        if (newEnemySpawnRate < 400) {
+            newEnemySpawnRate = 400;
+            newEnemyHP += 0.03;
         }
 
         let hasChanged = false;
@@ -1245,7 +1266,6 @@ export class MainScene extends Phaser.Scene {
             hasChanged = true;
         }
 
-        this.debugMeter.setText(`${this.enemySpawnRate}, ${this.enemyHP.toFixed(2)}`);
         if (hasChanged) {
             console.log('updateDifficulty', this.enemySpawnRate, this.enemyHP);
         } else {
