@@ -299,7 +299,7 @@ export class MainScene extends Phaser.Scene {
             this.makePart(
                 +this.sys.game.config.width / 2,
                 +this.sys.game.config.height / 2,
-                true
+                -1, true
             )
         }
 
@@ -560,7 +560,7 @@ export class MainScene extends Phaser.Scene {
                 if (Math.random() <= this.partSpawnChance) {
                     this.makePart(
                         enemy.x, enemy.y,
-                        true
+                        this.partScatterLife, true
                     );
                 }
                 enemy.bowOutEvent.destroy();
@@ -577,8 +577,8 @@ export class MainScene extends Phaser.Scene {
             this.displayDamage(playerPart.x, playerPart.y, '-3', 3000);
             playerPart.takeDamage(3);
 
-            this.displayDamage(enemy.x, enemy.y, '-4', 3000);
-            if (enemy.takeDamage) enemy.takeDamage(4);
+            this.displayDamage(enemy.x, enemy.y, '-10', 3000);
+            if (enemy.takeDamage) enemy.takeDamage(10);
 
             contactPoints.forEach((contactPoint) => {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
@@ -588,8 +588,8 @@ export class MainScene extends Phaser.Scene {
             this.displayDamage(player.x, player.y, '-6', 3000);
             player.takeDamage(6);
 
-            this.displayDamage(enemy.x, enemy.y, '-4', 3000);
-            if (enemy.takeDamage) enemy.takeDamage(4);
+            this.displayDamage(enemy.x, enemy.y, '-10', 3000);
+            if (enemy.takeDamage) enemy.takeDamage(10);
 
             contactPoints.forEach((contactPoint) => {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
@@ -724,7 +724,7 @@ export class MainScene extends Phaser.Scene {
 
     private makePart(
         x: number, y: number,
-        doScatter: boolean
+        timeToLive: number, doScatter: boolean
     ) {
         const wingName = <string>Phaser.Utils.Array.GetRandom([
             'spaceParts_001',
@@ -803,16 +803,25 @@ export class MainScene extends Phaser.Scene {
             ;
 
 
+        if (timeToLive > -1) {
+            part.destroyTimer = this.time.addEvent({
+                delay: (timeToLive > 2000 ? timeToLive - 2000 : timeToLive * 0.2), callback: () => {
+                    part.setAlpha(0.5);
 
-        part.destroyTimer = this.time.addEvent({
-            delay: this.partScatterLife, loop: false, callback: () => {
-                destroyPart();
-            }
-        });
+                    part.destroyTimer = this.time.addEvent({
+                        delay: (timeToLive > 2000 ? 2000 : timeToLive * 0.5), callback: () => {
+                            destroyPart();
+                        }
+                    });
+                }
+            });
+        }
+
 
         const destroyPart = () => {
-            part.destroyTimer.destroy();
+            if (part.destroyTimer) part.destroyTimer.destroy();
             this.partList.splice(this.partList.indexOf(part), 1);
+            this.makeExplosion2(part.x, part.y);
             part.destroy();
         }
 
@@ -1062,7 +1071,7 @@ export class MainScene extends Phaser.Scene {
     private attachPart(parent: any, part: any, dx: number, dy: number) {
 
         (<Phaser.Physics.Matter.Sprite>part).setVelocity(0);
-        part.setName('player_part');
+        part.setName('player_part').setAlpha(1);
         part
             .setCircle(15, {})
             .setFixedRotation()
