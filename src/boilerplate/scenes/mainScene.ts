@@ -171,6 +171,7 @@ export class MainScene extends Phaser.Scene {
     private totalKill = 0;
     private highestPartCount = 0;
     private killCount: number[] = [0];
+    private crashDamage: number = 0;
     private allowedEnemies: number = 1;
 
     private difficulty: number = 0;
@@ -578,6 +579,7 @@ export class MainScene extends Phaser.Scene {
             playerPart.takeDamage(3);
 
             this.displayDamage(enemy.x, enemy.y, '-10', 3000);
+            this.crashDamage += 10;
             if (enemy.takeDamage) enemy.takeDamage(10);
 
             contactPoints.forEach((contactPoint) => {
@@ -589,6 +591,7 @@ export class MainScene extends Phaser.Scene {
             player.takeDamage(6);
 
             this.displayDamage(enemy.x, enemy.y, '-10', 3000);
+            this.crashDamage += 10;
             if (enemy.takeDamage) enemy.takeDamage(10);
 
             contactPoints.forEach((contactPoint) => {
@@ -1297,13 +1300,16 @@ export class MainScene extends Phaser.Scene {
 
         console.log(`${this.difficulty}. ${diff.desc}`, diff);
         if (diff.end) {
-            this.displayTitle(`Congratulations, you have won\n` +
+            const title = `Congratulations, you have won\n` +
                 '\n\n' +
                 `Score: ${Math.floor(this.score / 100)}\n` +
                 `Time: ${(this.time.now / 1000).toFixed(2)}s\n` +
+                `Largest ship size: ${this.highestPartCount + 1}\n` +
                 `Take-downs: ${this.totalKill}\n` +
-                `Largest ship size: ${this.highestPartCount + 1}`
-                , 20000);
+                `Crash attack: ${this.crashDamage}`
+                ;
+
+            this.displayTitle(title, 20000);
 
             (<any>this.player).setCollisionCategory(0);
             (<any>this.partList).forEach((part: any) => part.setCollisionCategory(0));
