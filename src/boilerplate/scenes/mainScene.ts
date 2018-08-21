@@ -60,6 +60,12 @@ interface Enemy extends Phaser.Physics.Matter.Sprite {
     onHitPlayer?: (enemy: any, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     tintFill?: boolean;
     undoTintEvent?: Phaser.Time.TimerEvent;
+    canShootEvent?: Phaser.Time.TimerEvent;
+}
+
+interface EnemyBullet extends Phaser.Physics.Matter.Sprite {
+    onHitPlayer?: (player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => void;
+    birthdayEvent?: Phaser.Time.TimerEvent;
 }
 
 interface HPBar extends Phaser.GameObjects.Graphics {
@@ -72,7 +78,7 @@ enum collisionCategory {
     PLAYER = 1 << 1,
     PLAYER_BULLET = 1 << 2,
     ENEMY = 1 << 3,
-    ENEMY_BULL = 1 << 4,
+    PLAYER_BULLET = 1 << 4,
     STAR = 1 << 5,
     PART = 1 << 6,
     PLAYER_PART = 1 << 7,
@@ -94,11 +100,13 @@ export class MainScene extends Phaser.Scene {
 
     private enemySpawnRate = 1000;
     private enemyHP = 6;
+    private enemyShootRate = 1000;
+    private enemyBulletSpeed = 3.5;
 
     private startingParts = 1;
     private partSpawnChance = 0.1;
     private partRadius = 18;
-    private partHP = 6;
+    private partHP = 10;
     private partAngle = 20;
     private partScatterSpeed = 3;
     private partScatterLife = 10 * 1000;
@@ -195,7 +203,7 @@ export class MainScene extends Phaser.Scene {
             .setFrictionAir(this.drag)
             .setFixedRotation()
             .setCollisionCategory(collisionCategory.PLAYER)
-            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULL | collisionCategory.PART)
+            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULLET | collisionCategory.PART)
             ;
         this.player.onHitPart = this.onPlayerHitPart;
         this.player.hp = this.playerHP;
@@ -365,6 +373,18 @@ export class MainScene extends Phaser.Scene {
         this.spawnStar(x, y);
     }
 
+        
+    private onEnemyCanShoot(enemy:Enemy): void {
+        if (this.gameIsOver) return;
+        const bullet = this.makeEnemyBullet('enemy_bullet',
+            enemy.x, enemy.y + 20,
+            "spaceshooter", 'laserRed07',
+            20, 180
+        );
+
+        this.bulletList.push(bullet);
+    }
+
     private spawnStar(x: number, y: number) {
         const depth = Phaser.Math.FloatBetween(0, 0.2);
         const star: Star = this.matter.add.sprite(x, y, "spaceshooter", 'star1');
@@ -425,13 +445,17 @@ export class MainScene extends Phaser.Scene {
             .setFrictionStatic(0)
             .setFixedRotation()
             .setCollisionCategory(collisionCategory.ENEMY)
-            .setCollidesWith(collisionCategory.PLAYER_BULLET | collisionCategory.ENEMY_BULL | collisionCategory.PLAYER | collisionCategory.PLAYER_PART)
+            .setCollidesWith(collisionCategory.PLAYER_BULLET | collisionCategory.PLAYER | collisionCategory.PLAYER_PART)
             ;
         // makeHPBar later
 
         enemy.setVelocity(0, 2);
+        
+        enemy.canShootEvent = this.time.addEvent({ delay: this.enemyShootRate, callback: ()=>this.onEnemyCanShoot(enemy), loop: true });
+        
         this.time.addEvent({
             delay: 20 * 1000, loop: false, callback: () => {
+                enemy.canShootEvent.destroy();
                 enemy.destroy();
                 this.bulletList.splice(this.bulletList.indexOf(enemy), 1);
             }
@@ -457,6 +481,8 @@ export class MainScene extends Phaser.Scene {
                         true
                     );
                 }
+                
+                enemy.canShootEvent.destroy();
                 enemy.destroy();
                 this.cameras.main.shake(50, 0.02, false);
 
@@ -466,9 +492,9 @@ export class MainScene extends Phaser.Scene {
 
         enemy.onHitPlayerPart = (enemy: any, playerPart: Part, contactPoints: { vertex: { x: number, y: number } }[]) => {
             this.displayDamage(playerPart.x, playerPart.y, '-1', 3000);
-            playerPart.takeDamage(1);
+            playerPart.takeDamage(4);
 
-            this.displayDamage(enemy.x, enemy.y, '-1', 3000);
+            this.displayDamage(enemy.x, enemy.y, '-4', 3000);
             if (enemy.takeDamage) enemy.takeDamage(1);
 
             contactPoints.forEach((contactPoint) => {
@@ -476,11 +502,11 @@ export class MainScene extends Phaser.Scene {
             });
         };
         enemy.onHitPlayer = (enemy: any, player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => {
-            this.displayDamage(player.x, player.y, '-1', 3000);
-            player.takeDamage(1);
+            this.displayDamage(player.x, player.y, '-4', 3000);
+            player.takeDamage(4);
 
-            this.displayDamage(enemy.x, enemy.y, '-1', 3000);
-            if (enemy.takeDamage) enemy.takeDamage(1);
+            this.displayDamage(enemy.x, enemy.y, '-4', 3000);
+            if (enemy.takeDamage) enemy.takeDamage(4);
 
             contactPoints.forEach((contactPoint) => {
                 this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
@@ -518,7 +544,7 @@ export class MainScene extends Phaser.Scene {
             .setSensor(true)
             .setFixedRotation()
             .setCollisionCategory(collisionCategory.PLAYER_BULLET)
-            .setCollidesWith(collisionCategory.ENEMY | collisionCategory.ENEMY_BULL)
+            .setCollidesWith(collisionCategory.ENEMY | collisionCategory.ENEMY_BULLET)
         );
 
         bullet.birthdayEvent = this.time.addEvent({
@@ -542,6 +568,61 @@ export class MainScene extends Phaser.Scene {
             destroyBullet();
         }
         return bullet
+    }
+
+
+    private makeEnemyBullet(
+        name: string,
+        x: number, y: number,
+        key: string, frameName: string,
+        speed: number, angle: number
+    ): EnemyBullet {
+        const bullet = <EnemyBullet>this.matter.add.sprite(
+            x, y,
+            key, frameName
+        );
+        bullet.setName(name);
+
+
+        const velocity = Phaser.Math.Rotate({ x: 0, y: -speed }, Phaser.Math.DegToRad(angle));
+        // const velocity = { x: 0, y: -speed };
+
+
+        this.bulletList.push(bullet);
+        (bullet
+            .setAlpha(0.9)
+            .setAngle(angle)
+            .setOrigin(0.5, 0.5)
+            .setScale(this.bulletScale)
+            .setScaleMode(Phaser.ScaleModes.NEAREST)
+            .setVelocity(velocity.x, velocity.y)
+            .setSensor(true)
+            .setFixedRotation()
+            .setCollisionCategory(collisionCategory.ENEMY_BULLET)
+            .setCollidesWith(collisionCategory.PLAYER | collisionCategory.PLAYER_PART) // collisionCategory.PLAYER_BULLET_SOLID
+        );
+
+        bullet.birthdayEvent = this.time.addEvent({
+            delay: 1000, loop: false, callback: () => {
+                destroyBullet();
+            }
+        });
+
+        const destroyBullet = () => {
+            bullet.birthdayEvent.destroy();
+            bullet.destroy();
+            this.bulletList.splice(this.bulletList.indexOf(bullet), 1)
+        }
+
+        bullet.onHitPlayer = (player: Player, contactPoints: { vertex: { x: number, y: number } }[]) => {
+            this.displayDamage(player.x, player.y, '-1', 3000);
+            if (player.takeDamage) player.takeDamage(1);
+            contactPoints.forEach((contactPoint) => {
+                this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
+            });
+            destroyBullet();
+        }
+        return bullet;
     }
 
     private makePart(
