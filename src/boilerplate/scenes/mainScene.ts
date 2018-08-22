@@ -179,7 +179,7 @@ export class MainScene extends Phaser.Scene {
     private difficultyCurve: IDifficulty[] = [
         { wait: 0, desc: 'init', allowedEnemies: 2, enemySpawnInterval: 1500, enemyHP: 6 },
         { wait: 5000, desc: '', allowedEnemies: 3, enemySpawnInterval: 1300, enemyHP: 7 },
-        { wait: 10000, desc: '', allowedEnemies: 4, enemySpawnInterval: 1000, enemyHP: 8 },
+        { wait: 15000, desc: '', allowedEnemies: 4, enemySpawnInterval: 1000, enemyHP: 8 },
         { wait: 10000, desc: '', allowedEnemies: 5, enemySpawnInterval: 1000, enemyHP: 8 },
         { wait: 8000, desc: '', allowedEnemies: 5, enemySpawnInterval: 1000, enemyHP: 9 },
         { wait: 5000, desc: '', allowedEnemies: 7, enemySpawnInterval: 800, enemyHP: 11 },
