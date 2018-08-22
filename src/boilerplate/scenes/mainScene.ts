@@ -30,6 +30,7 @@ interface Player extends Phaser.GameObjects.Container {
     partHP?: HPBar;
     partWing?: Phaser.GameObjects.Sprite;
     mouseTarget?: Phaser.Input.Pointer;
+    mouseOffset?: { x: number, y: number };
     followingMouse?: boolean;
     onHitPart?: (parent: any, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     takeDamage?: (amount: number) => void;
@@ -349,7 +350,12 @@ export class MainScene extends Phaser.Scene {
             }
 
             if (this.player.followingMouse) {
-                const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.player.mouseTarget.x, this.player.mouseTarget.y);
+                this.player.mouseOffset;
+                const dest = {
+                    x: this.player.mouseTarget.x + this.player.mouseOffset.x,
+                    y: this.player.mouseTarget.y + this.player.mouseOffset.y,
+                }
+                const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, dest.x, dest.y);
                 const physicsDelta = this.matter.world.getDelta(time, delta);
                 // console.log(dist, this.topSpeed * physicsDelta / 100 * 1.1);
                 const currSpeed = this.player.body.speed;
@@ -358,7 +364,7 @@ export class MainScene extends Phaser.Scene {
                 if (dist > currSpeed * (physicsDelta / 10)) {
                     // this.matter.moveTo(this.plane, this.plane.mouseTarget.x, this.plane.mouseTarget.y, this.topSpeed);
                     const playerPos = new Phaser.Math.Vector2(this.player.x, this.player.y);
-                    const direction = new Phaser.Math.Vector2(this.player.mouseTarget.x, this.player.mouseTarget.y).subtract(playerPos);
+                    const direction = new Phaser.Math.Vector2(dest.x, dest.y).subtract(playerPos);
                     direction.scale(this.topSpeed / direction.length());
                     (<any>this.player).setVelocity(direction.x, direction.y);
                 } else {
@@ -1288,6 +1294,10 @@ export class MainScene extends Phaser.Scene {
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
             this.player.followingMouse = true;
             this.player.mouseTarget = pointer;
+            this.player.mouseOffset = {
+                x: this.player.x - pointer.x,
+                y: this.player.y - pointer.y,
+            };
         });
         this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
             this.player.followingMouse = false;
@@ -1315,7 +1325,7 @@ export class MainScene extends Phaser.Scene {
             (<any>this.partList).forEach((part: any) => part.setCollisionCategory(0));
             this.gameIsOver = true;
             this.time.addEvent({ delay: 4000, callback: () => (<any>this.player).setVelocityY(-6).setFrictionAir(0).setFrictionStatic(0) });
-
+            this.spawnEnemyTimerEvent.destroy();
         } else {
             const diffWave: IDifficultyWave = diff;
             this.allowedEnemies = diffWave.allowedEnemies;
