@@ -814,11 +814,13 @@ export class MainScene extends Phaser.Scene {
 
         if (timeToLive > -1) {
             part.destroyTimer = this.time.addEvent({
-                delay: (timeToLive > 2000 ? timeToLive - 2000 : timeToLive * 0.2), callback: () => {
+                delay: (timeToLive > 2000 ? timeToLive - 2000 : timeToLive * 0.2),
+                callback: () => {
                     part.setAlpha(0.5);
 
                     part.destroyTimer = this.time.addEvent({
-                        delay: (timeToLive > 2000 ? 2000 : timeToLive * 0.5), callback: () => {
+                        delay: (timeToLive > 2000 ? 2000 : timeToLive * 0.5),
+                        callback: () => {
                             destroyPart();
                         }
                     });
@@ -835,7 +837,10 @@ export class MainScene extends Phaser.Scene {
         }
 
         if (doScatter) {
-            const velocity = Phaser.Math.Rotate({ x: 0, y: this.partScatterSpeed }, Phaser.Math.FloatBetween(-Math.PI / 2, Math.PI / 2));
+            const velocity = Phaser.Math.Rotate(
+                { x: 0, y: this.partScatterSpeed },
+                Phaser.Math.FloatBetween(-Math.PI / 2, Math.PI / 2)
+            );
             (<any>part).setVelocity(velocity.x, velocity.y);
         }
 
