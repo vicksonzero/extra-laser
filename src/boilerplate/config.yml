@@ -1,0 +1,5 @@
+config:
+  player:
+    hp: 20
+    mass: 750
+    drag: 0.2

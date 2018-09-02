@@ -1,5 +1,8 @@
 import { bindAll } from 'lodash';
 
+import { collisionCategory } from '../entities/collisionCategory';
+import { Player } from '../entities/Player';
+
 interface IMoveKeys {
     down: Phaser.Input.Keyboard.Key,
     up: Phaser.Input.Keyboard.Key,
@@ -24,18 +27,6 @@ interface IDifficultyEnding {
     end: boolean;
 }
 
-interface Player extends Phaser.GameObjects.Container {
-    hp?: number;
-    maxHP?: number;
-    partHP?: HPBar;
-    partWing?: Phaser.GameObjects.Sprite;
-    mouseTarget?: Phaser.Input.Pointer;
-    mouseOffset?: { x: number, y: number };
-    followingMouse?: boolean;
-    onHitPart?: (parent: any, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) => void;
-    takeDamage?: (amount: number) => void;
-    undoTintEvent?: Phaser.Time.TimerEvent;
-}
 interface PlayerBullet extends Phaser.Physics.Matter.Sprite {
     onHitEnemy?: (enemy: Enemy, contactPoints: { vertex: { x: number, y: number } }[]) => void;
     bowOutEvent?: Phaser.Time.TimerEvent;
@@ -93,16 +84,6 @@ interface HPBar extends Phaser.GameObjects.Graphics {
     barHeight?: number;
 }
 
-enum collisionCategory {
-    WORLD = 1 << 0,
-    PLAYER = 1 << 1,
-    PLAYER_BULLET = 1 << 2,
-    ENEMY = 1 << 3,
-    ENEMY_BULLET = 1 << 4,
-    STAR = 1 << 5,
-    PART = 1 << 6,
-    PLAYER_PART = 1 << 7,
-}
 
 
 export class MainScene extends Phaser.Scene {
@@ -165,7 +146,7 @@ export class MainScene extends Phaser.Scene {
     private difficultyTimerEvent: Phaser.Time.TimerEvent;
 
     // gameFlow
-    private gameIsOver = false;
+    public gameIsOver = false;
     private score = 0;
     private powerLevel = 0;
     private killPerSecond = 0;
@@ -232,60 +213,21 @@ export class MainScene extends Phaser.Scene {
         // (<any>this.matter.world.walls).top.restitution = 1;
         // (<any>this.matter.world.walls).bottom.restitution = 1;
 
-        const playerPartContainer = this.add.container((+this.sys.game.config.width) / 2, (+this.sys.game.config.height) * 4 / 5, []);
-        const playerPartWing = this.add.sprite(0, 0, 'spaceshooter', 'playerShip1_blue');
+        const playerPartWing = this.add.sprite(0, 0, 'spaceshooter', 'playerShip1_blue')
+        .setOrigin(0.5, 0.5)
+        .setScale(this.playerScale)
+        .setScaleMode(Phaser.ScaleModes.NEAREST)
+        ;
         const playerPartHP = this.makeHPBar(0, 20, 100, 4);
-
-        playerPartContainer.add(playerPartWing
-            .setOrigin(0.5, 0.5)
-            .setScale(this.playerScale)
-            .setScaleMode(Phaser.ScaleModes.NEAREST)
-        );
-
-        playerPartContainer.add(playerPartHP
-            //
-        );
-
+        
+        
+        const playerPartContainer = <Player>this.add.existing(new Player(this, this));
         this.player = <Player>this.matter.add.gameObject(playerPartContainer, { shape: { type: 'circle', radius: 10 } });
-
-        this.player.setName('player');
-        (<any>this.player)
-            .setMass(this.mass / 4)
-            .setFrictionAir(this.drag)
-            .setFixedRotation()
-            .setCollisionCategory(collisionCategory.PLAYER)
-            .setCollidesWith(collisionCategory.WORLD | collisionCategory.ENEMY | collisionCategory.ENEMY_BULLET | collisionCategory.PART)
+        this.player
+            .initPhysics()
+            .initAttachments(playerPartWing, playerPartHP)
+            .init((+this.sys.game.config.width) / 2, (+this.sys.game.config.height) * 4 / 5)
             ;
-        this.player.onHitPart = this.onPlayerHitPart;
-        this.player.hp = this.playerHP;
-        this.player.maxHP = this.playerHP;
-        this.player.partWing = playerPartWing;
-        this.player.partHP = playerPartHP;
-
-        this.player.takeDamage = (amount: number) => {
-            this.player.hp -= amount;
-
-            const wing = this.player.partWing;
-            wing.setTint(0xff0000);
-            this.updateHPBar(this.player.partHP, this.player.hp, this.player.maxHP, 0, 0);
-
-            this.player.undoTintEvent = this.time.addEvent({
-                delay: 200, loop: false, callback: () => {
-                    wing.setTint(0xAAAAAA);
-                }
-            });
-
-            if (this.player.hp <= 0) {
-                if (this.player.undoTintEvent) this.player.undoTintEvent.destroy();
-                this.makeExplosion3(this.player.x, this.player.y);
-                this.gameIsOver = true;
-                this.player.visible = false;
-                (<any>this.player)
-                    .setCollisionCategory(0)
-                // .setPosition(-1000, -1000);
-                this.cameras.main.shake(1000, 0.04, false);
-            }
-        }
 
 
 
@@ -857,7 +799,7 @@ export class MainScene extends Phaser.Scene {
         return bar;
     }
 
-    private updateHPBar(bar: HPBar, hp: number, maxHP: number, en: number, maxEN: number) {
+    public updateHPBar(bar: HPBar, hp: number, maxHP: number, en: number, maxEN: number) {
         bar.clear();
         const width = bar.barWidth;
         const height = bar.barHeight;
@@ -974,7 +916,7 @@ export class MainScene extends Phaser.Scene {
         return explosion;
     }
 
-    private makeExplosion3(
+    public makeExplosion3(
         x: number, y: number,
     ): Effect {
         const explosion: Effect = this.add.sprite(
@@ -1082,7 +1024,7 @@ export class MainScene extends Phaser.Scene {
     /**
      * @todo change any back to Phaser.Physics.Matter.*
      */
-    private attachPart(parent: any, part: any, dx: number, dy: number) {
+    public attachPart(parent: any, part: any, dx: number, dy: number) {
 
         (<Phaser.Physics.Matter.Sprite>part).setVelocity(0);
         part.setName('player_part').setAlpha(1);
