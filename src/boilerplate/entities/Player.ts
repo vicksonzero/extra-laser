@@ -4,19 +4,17 @@ import { ICombatEntity } from './ICombatEntity';
 import { collisionCategory } from './collisionCategory';
 
 import { GM } from '../GM';
+import { IPartReceiver } from './IPartReceiver';
+import { applyMixins } from '../Utils';
+import { Part } from './Part';
 
 const { config } = require('json-loader!yaml-loader!../config.yml');
-
-interface Part {
-    x: number,
-    y: number,
-}
 
 interface HPBar extends Phaser.GameObjects.GameObject {
 
 }
 
-export class Player extends MatterContainer implements ICombatEntity {
+export class Player extends MatterContainer implements ICombatEntity, IPartReceiver {
     gm: GM = null;
     hp: number;
     maxHP: number;
@@ -90,19 +88,17 @@ export class Player extends MatterContainer implements ICombatEntity {
             this.gm.makeExplosion3(this.x, this.y);
             this.gm.gameIsOver = true;
             this.visible = false;
-            (<any>this)
+            this
                 .setCollisionCategory(0)
+                ;
             // .setPosition(-1000, -1000);
             this.gm.cameras.main.shake(1000, 0.04, false);
         }
         return this;
     }
-    onHitPart(parent: this, part: Part, contactPoints: { vertex: { x: number, y: number } }[]) {
-        // debugger;
-        const displacement = new Phaser.Math.Vector2(part.x, part.y).subtract(
-            new Phaser.Math.Vector2(this.x, this.y)
-        );
-
-        this.gm.attachPart(this, part, displacement.x, displacement.y);
+    onHitPart(parent: this, part: Part, contactPoints: { vertex: { x: number; y: number; }; }[]): void {
+        throw new Error("Method not implemented.");
     }
 }
+
+applyMixins(Player, [IPartReceiver]);

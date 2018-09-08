@@ -3,3 +3,8 @@ config:
     hp: 20
     mass: 750
     drag: 0.2
+  playerPart:
+    hp: 20
+    mass: 3000
+    drag: 0
+    bounce: 1
