@@ -13,12 +13,12 @@ export default class MatterContainer
     Phaser.Physics.Matter.Components.Static,
     Phaser.Physics.Matter.Components.Transform,
     Phaser.Physics.Matter.Components.Velocity {
-        
+
     setName(value: string): this {
         super.setName(value);
         return this;
     }
-    
+
     setBounce(value: number): this {
         throw new Error("Method not implemented.");
     }
@@ -67,7 +67,7 @@ export default class MatterContainer
     setDensity(value: number): this {
         throw new Error("Method not implemented.");
     }
-    centerOfMass: any;
+    centerOfMass: Phaser.Math.Vector2;
     setSensor(value: boolean): this {
         throw new Error("Method not implemented.");
     }

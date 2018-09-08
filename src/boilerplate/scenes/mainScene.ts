@@ -281,16 +281,16 @@ export class MainScene extends Phaser.Scene {
         if (!this.gameIsOver) {
             // Enables movement of player with WASD keys
             if (this.moveKeys.up.isDown) {
-                (<any>this.player).applyForce(new Phaser.Math.Vector2(0, -this.accel));
+                this.player.applyForce(new Phaser.Math.Vector2(0, -this.accel));
             }
             if (this.moveKeys.down.isDown) {
-                (<any>this.player).applyForce(new Phaser.Math.Vector2(0, this.accel));
+                this.player.applyForce(new Phaser.Math.Vector2(0, this.accel));
             }
             if (this.moveKeys.left.isDown) {
-                (<any>this.player).applyForce(new Phaser.Math.Vector2(-this.accel, 0));
+                this.player.applyForce(new Phaser.Math.Vector2(-this.accel, 0));
             }
             if (this.moveKeys.right.isDown) {
-                (<any>this.player).applyForce(new Phaser.Math.Vector2(this.accel, 0));
+                this.player.applyForce(new Phaser.Math.Vector2(this.accel, 0));
             }
 
             if (this.player.followingMouse) {
@@ -310,11 +310,11 @@ export class MainScene extends Phaser.Scene {
                     const playerPos = new Phaser.Math.Vector2(this.player.x, this.player.y);
                     const direction = new Phaser.Math.Vector2(dest.x, dest.y).subtract(playerPos);
                     direction.scale(this.topSpeed / direction.length());
-                    (<any>this.player).setVelocity(direction.x, direction.y);
+                    this.player.setVelocity(direction.x, direction.y);
                 } else {
                     // console.log('snap');
 
-                    (<any>this.player).setVelocity(0, 0);
+                    this.player.setVelocity(0, 0);
                 }
             }
         }
@@ -990,7 +990,7 @@ export class MainScene extends Phaser.Scene {
      */
     public attachPart(parent: any, part: any, dx: number, dy: number) {
 
-        (<Phaser.Physics.Matter.Sprite>part).setVelocity(0);
+        part.setVelocity(0);
         part.setName('player_part').setAlpha(1);
         part
             .setCircle(15, {})
@@ -1055,7 +1055,7 @@ export class MainScene extends Phaser.Scene {
         this.matter.world.removeConstraint(constraint, false);
         this.constraintList.splice(this.constraintList.indexOf(constraint), 1);
 
-        (<any>part)
+        part
             .setName('part')
             .setMass(this.mass)
             .setFrictionAir(0)
@@ -1232,10 +1232,10 @@ export class MainScene extends Phaser.Scene {
 
             this.displayTitle(title, 20000);
 
-            (<any>this.player).setCollisionCategory(0);
-            (<any>this.partList).forEach((part: any) => part.setCollisionCategory(0));
+            this.player.setCollisionCategory(0);
+            this.partList.forEach((part) => part.setCollisionCategory(0));
             this.gameIsOver = true;
-            this.time.addEvent({ delay: 4000, callback: () => (<any>this.player).setVelocityY(-6).setFrictionAir(0).setFrictionStatic(0) });
+            this.time.addEvent({ delay: 4000, callback: () => this.player.setVelocityY(-6).setFrictionAir(0).setFrictionStatic(0) });
             this.spawnEnemyTimerEvent.destroy();
         } else {
             const diffWave: IDifficultyWave = diff;
