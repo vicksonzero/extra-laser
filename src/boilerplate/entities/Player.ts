@@ -8,7 +8,7 @@ import { IPartReceiver } from './IPartReceiver';
 import { applyMixins } from '../Utils';
 import { Part } from './Part';
 
-const { config } = require('json-loader!yaml-loader!../config.yml');
+import { config } from '../config';
 
 interface HPBar extends Phaser.GameObjects.GameObject {
 

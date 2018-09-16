@@ -5,7 +5,7 @@ import { collisionCategory } from './collisionCategory';
 import MatterContainer from "./MatterContainer";
 import { IMatterContactPoints } from "../Utils";
 
-const { config } = require('json-loader!yaml-loader!../config.yml');
+import { config } from '../config';
 
 interface HPBar extends Phaser.GameObjects.GameObject {
 
@@ -42,11 +42,12 @@ export class Part extends MatterContainer implements ICombatEntity, IPartReceive
     }
 
     initPhysics(): this {
+        const { playerPart } = config;
         this
-            .setMass(config.playerPart.mass)
-            .setFrictionAir(config.playerPart.drag)
-            .setFrictionStatic(config.playerPart.drag)
-            .setBounce(config.playerPart.bounce)
+            .setMass(playerPart.mass)
+            .setFrictionAir(playerPart.drag)
+            .setFrictionStatic(playerPart.drag)
+            .setBounce(playerPart.bounce)
             .setFixedRotation()
             .setCollisionCategory(collisionCategory.PART)
             .setCollidesWith(collisionCategory.WORLD | collisionCategory.PLAYER | collisionCategory.PART | collisionCategory.PLAYER_PART)
