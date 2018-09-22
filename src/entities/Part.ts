@@ -67,15 +67,19 @@ export class Part extends MatterContainer implements ICombatEntity, IPartReceive
     takeDamage(amount: number) {
         this.hp -= amount;
 
-        const wing = this.partWing;
-        wing.setTint(0xff0000);
-        this.partHP.updateHPBar(this.hp, this.maxHP, 0, 0);
+        if (this.partWing) {
+            const wing = this.partWing;
+            wing.setTint(0xff0000);
 
-        this.undoTintEvent = this.gm.time.addEvent({
-            delay: 200, loop: false, callback: () => {
-                wing.setTint(0xAAAAAA);
-            }
-        });
+            this.undoTintEvent = this.gm.time.addEvent({
+                delay: 200, loop: false, callback: () => {
+                    wing.setTint(0xAAAAAA);
+                }
+            });
+        }
+        if (this.partHP) {
+            this.partHP.updateHPBar(this.hp, this.maxHP, 0, 0);
+        }
 
         if (this.hp <= 0) {
             if (this.undoTintEvent) this.undoTintEvent.destroy();

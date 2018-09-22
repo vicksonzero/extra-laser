@@ -10,6 +10,31 @@ config:
     mass: 3000
     drag: 0
     bounce: 1
+    gunOffsetX: 0
+    gunOffsetY: -10
+    gunOffsetNoise: 5
+    partWingCandidates:
+      - key: spaceshooterExt
+        frame: spaceParts_001
+      - key: spaceshooterExt
+        frame: spaceParts_002
+      - key: spaceshooterExt
+        frame: spaceParts_003
+      - key: spaceshooterExt
+        frame: spaceParts_004
+      - key: spaceshooterExt
+        frame: spaceParts_005
+      - key: spaceshooterExt
+        frame: spaceParts_006
+      - key: spaceshooterExt
+        frame: spaceParts_007
+      - key: spaceshooterExt
+        frame: spaceParts_008
+      - key: spaceshooterExt
+        frame: spaceParts_009
+    partGunCandidates:
+      - key: spaceshooterExt
+        frame: gun08
   enemy:
     hp: 6
     mass: 3000

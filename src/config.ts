@@ -1,4 +1,6 @@
-
+export type ISpriteSpec = {
+    key: string, frame: string
+}
 export type IConfig = {
     player: {
         hp: number,
@@ -12,6 +14,11 @@ export type IConfig = {
         mass: number,
         drag: number,
         bounce: number,
+        gunOffsetX: number,
+        gunOffsetY: number,
+        gunOffsetNoise: number,
+        partWingCandidates: ISpriteSpec[],
+        partGunCandidates: ISpriteSpec[],
     },
     enemy: {
         hp: number,

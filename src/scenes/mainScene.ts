@@ -6,7 +6,7 @@ import { Enemy } from '../entities/Enemy';
 import { Part } from '../entities/Part';
 import { IMatterContactPoints } from "../Utils";
 import { ISolidHitsPlayer } from '../entities/IDynamics';
-import { config } from '../config';
+import { config, ISpriteSpec } from '../config';
 import { HPBar } from '../UI/HPBar';
 
 interface IMoveKeys {
@@ -21,9 +21,9 @@ type IDifficulty = IDifficultyWave | IDifficultyEnding;
 interface IDifficultyWave {
     wait: number;
     desc?: string;
-    allowedEnemies?: number;
-    enemyHP?: number;
-    enemySpawnInterval?: number;
+    allowedEnemies: number;
+    enemyHP: number;
+    enemySpawnInterval: number;
     end?: boolean;
 }
 
@@ -251,8 +251,8 @@ export class MainScene extends Phaser.Scene {
                 this.player.applyForce(new Phaser.Math.Vector2(config.player.accel, 0));
             }
 
-            if (this.player.followingMouse) {
-                this.player.mouseOffset;
+            if (this.player.followingMouse && this.player.mouseTarget && this.player.mouseOffset) {
+                // this.player.mouseOffset;
                 const dest = {
                     x: this.player.mouseTarget.x + this.player.mouseOffset.x,
                     y: this.player.mouseTarget.y + this.player.mouseOffset.y,
@@ -470,7 +470,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         const destroyBullet = () => {
-            bullet.bowOutEvent.destroy();
+            if (bullet.bowOutEvent) bullet.bowOutEvent.destroy();
             this.bulletList.splice(this.bulletList.indexOf(bullet), 1);
             bullet.destroy();
         }
@@ -527,7 +527,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         const destroyBullet = () => {
-            bullet.bowOutEvent.destroy();
+            if (bullet.bowOutEvent) bullet.bowOutEvent.destroy();
             this.bulletList.splice(this.bulletList.indexOf(bullet), 1);
             bullet.destroy();
         }
@@ -557,45 +557,29 @@ export class MainScene extends Phaser.Scene {
         x: number, y: number,
         timeToLive: number, doScatter: boolean
     ) {
-        const wingName = <string>Phaser.Utils.Array.GetRandom([
-            'spaceParts_001',
-            'spaceParts_002',
-            'spaceParts_003',
-            'spaceParts_004',
-            'spaceParts_005',
-            'spaceParts_006',
-            'spaceParts_007',
-            'spaceParts_008',
-            'spaceParts_009',
-        ]);
-        const gunName = <string>Phaser.Utils.Array.GetRandom([
-            // 'gun00',
-            // 'gun01',
-            // 'gun02',
-            // 'gun03',
-            // 'gun04',
-            // 'gun05',
-            // 'gun06',
-            // 'gun07',
-            'gun08',
-            // 'gun09',
-            // 'gun10',
-        ]);
-        const gunOffset0 = 5;
+        const wingSpriteSpec: ISpriteSpec = Phaser.Utils.Array.GetRandom(
+            config.playerPart.partWingCandidates
+        );
+
+        const gunSpriteSpec: ISpriteSpec = Phaser.Utils.Array.GetRandom(
+            config.playerPart.partGunCandidates
+        );
+
+        const gunOffsetNoise = config.playerPart.gunOffsetNoise;
         const gunOffset = {
-            x: Phaser.Math.FloatBetween(-gunOffset0, gunOffset0),
-            y: Phaser.Math.FloatBetween(-gunOffset0, gunOffset0) - 10,
+            x: Phaser.Math.FloatBetween(-gunOffsetNoise, gunOffsetNoise) + config.playerPart.gunOffsetX,
+            y: Phaser.Math.FloatBetween(-gunOffsetNoise, gunOffsetNoise) + config.playerPart.gunOffsetY,
         };
 
 
-        const partWing = this.add.sprite(0, 0, 'spaceshooterExt', wingName)
+        const partWing = this.add.sprite(0, 0, wingSpriteSpec.key, wingSpriteSpec.frame)
             .setOrigin(0.5, 0.5)
             .setTint(0xAAAAAA)
             .setScale(this.wingManScale * 1.5)
             .setAngle(Phaser.Math.FloatBetween(0, 359))
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             ;
-        const partGun = this.add.sprite(0, 0, 'spaceshooter', gunName)
+        const partGun = this.add.sprite(0, 0, gunSpriteSpec.key, gunSpriteSpec.frame)
             .setX(gunOffset.x)
             .setY(gunOffset.y)
             .setAngle(Phaser.Math.FloatBetween(-this.bodyAngle, this.bodyAngle))
@@ -653,7 +637,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         const destroySpark = () => {
-            spark.bowOutEvent.destroy();
+            if (spark.bowOutEvent) spark.bowOutEvent.destroy();
             spark.destroy();
         }
 
@@ -688,7 +672,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         const destroySpark = () => {
-            explosion.bowOutEvent.destroy();
+            if (explosion.bowOutEvent) explosion.bowOutEvent.destroy();
             explosion.destroy();
         }
 
@@ -724,7 +708,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         const destroySpark = () => {
-            explosion.bowOutEvent.destroy();
+            if (explosion.bowOutEvent) explosion.bowOutEvent.destroy();
             explosion.destroy();
         }
 
@@ -766,7 +750,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         const destroySpark = () => {
-            explosion.bowOutEvent.destroy();
+            if (explosion.bowOutEvent) explosion.bowOutEvent.destroy();
             explosion.destroy();
         }
 
@@ -852,7 +836,13 @@ export class MainScene extends Phaser.Scene {
             ;
         part.hp = config.playerPart.hp;
         part.maxHP = config.playerPart.hp;
-        part.onHitPart = this.onPlayerHitPart;
+        part.onHitPart = (parent: any, part: Part, contactPoints: IMatterContactPoints) => {
+            const displacement = new Phaser.Math.Vector2(part.x, part.y).subtract(
+                new Phaser.Math.Vector2(parent.x, parent.y)
+            );
+
+            this.attachPart(parent, part, displacement.x, displacement.y);
+        };
         part
             .setCollisionCategory(collisionCategory.PLAYER_PART)
             ;
@@ -861,15 +851,19 @@ export class MainScene extends Phaser.Scene {
         part.takeDamage = (amount: number) => {
             part.hp -= amount;
 
-            const wing = part.partWing;
-            wing.setTint(0xff0000);
-            part.partHP.updateHPBar(part.hp, part.maxHP, 0, 0);
+            if (part.partWing) {
+                const wing = part.partWing;
+                wing.setTint(0xff0000);
 
-            part.undoTintEvent = this.time.addEvent({
-                delay: 200, loop: false, callback: () => {
-                    wing.setTint(0xAAAAAA);
-                }
-            });
+                part.undoTintEvent = this.time.addEvent({
+                    delay: 200, loop: false, callback: () => {
+                        wing.setTint(0xAAAAAA);
+                    }
+                });
+            }
+            if (part.partHP) {
+                part.partHP.updateHPBar(part.hp, part.maxHP, 0, 0);
+            }
 
             if (part.hp <= 0) {
                 if (part.undoTintEvent) part.undoTintEvent.destroy();
@@ -901,10 +895,12 @@ export class MainScene extends Phaser.Scene {
         byeByeList.forEach((constraint: any) => this.recursiveDetachPart(constraint.bodyB.gameObject));
 
         const constraint = this.constraintList.find((constraint: any) => constraint.bodyB.id === part.body.id);
-        const bodyA: Part = (<any>constraint).bodyA;
-        const bodyB: Part = (<any>constraint).bodyB;
-        this.matter.world.removeConstraint(constraint, false);
-        this.constraintList.splice(this.constraintList.indexOf(constraint), 1);
+        if (constraint) {
+            const bodyA: Part = (<any>constraint).bodyA;
+            const bodyB: Part = (<any>constraint).bodyB;
+            this.matter.world.removeConstraint(constraint, false);
+            this.constraintList.splice(this.constraintList.indexOf(constraint), 1);
+        }
 
         part
             .setName('part')
@@ -923,17 +919,6 @@ export class MainScene extends Phaser.Scene {
 
     }
 
-    /**
-     * @todo change any back to Phaser.Physics.Matter.*
-     */
-    private onPlayerHitPart = (parent: any, part: Part, contactPoints: IMatterContactPoints) => {
-        // debugger;
-        const displacement = new Phaser.Math.Vector2(part.x, part.y).subtract(
-            new Phaser.Math.Vector2(parent.x, parent.y)
-        );
-
-        this.attachPart(parent, part, displacement.x, displacement.y);
-    }
 
 
 
@@ -1089,7 +1074,7 @@ export class MainScene extends Phaser.Scene {
             this.time.addEvent({ delay: 4000, callback: () => this.player.setVelocityY(-6).setFrictionAir(0).setFrictionStatic(0) });
             this.spawnEnemyTimerEvent.destroy();
         } else {
-            const diffWave: IDifficultyWave = diff;
+            const diffWave = diff as IDifficultyWave;
             this.allowedEnemies = diffWave.allowedEnemies;
             this.enemyHP = diffWave.enemyHP;
             this.enemySpawnInterval = diffWave.enemySpawnInterval;
