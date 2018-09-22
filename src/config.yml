@@ -33,7 +33,7 @@ config:
       - key: spaceshooterExt
         frame: spaceParts_009
     partGunCandidates:
-      - key: spaceshooterExt
+      - key: spaceshooter
         frame: gun08
   enemy:
     hp: 6
@@ -43,3 +43,16 @@ config:
     bulletSpeed: 3.5
     bowOutTime: 20 # seconds
     # spawnInterval: 1000
+  difficultyCurve:
+    - { wait: 0, desc: 'init', allowedEnemies: 2, enemySpawnInterval: 1500, enemyHP: 6 }
+    - { wait: 5000, desc: '', allowedEnemies: 3, enemySpawnInterval: 1300, enemyHP: 7 }
+    - { wait: 15000, desc: '', allowedEnemies: 4, enemySpawnInterval: 1000, enemyHP: 8 }
+    - { wait: 10000, desc: '', allowedEnemies: 5, enemySpawnInterval: 1000, enemyHP: 8 }
+    - { wait: 8000, desc: '', allowedEnemies: 5, enemySpawnInterval: 1000, enemyHP: 9 }
+    - { wait: 5000, desc: '', allowedEnemies: 7, enemySpawnInterval: 800, enemyHP: 11 }
+    - { wait: 7000, desc: '', allowedEnemies: 9, enemySpawnInterval: 700, enemyHP: 15 }
+    - { wait: 10000, desc: '', allowedEnemies: 12, enemySpawnInterval: 500, enemyHP: 15 }
+    - { wait: 10000, desc: '', allowedEnemies: 12, enemySpawnInterval: 500, enemyHP: 17 }
+    - { wait: 10000, desc: '', allowedEnemies: 15, enemySpawnInterval: 700, enemyHP: 19 }
+    - { wait: 10000, desc: '', allowedEnemies: 15, enemySpawnInterval: 700, enemyHP: 19 }
+    - { wait: 20000, desc: 'end', end: true }

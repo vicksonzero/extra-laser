@@ -6,7 +6,7 @@ import { Enemy } from '../entities/Enemy';
 import { Part } from '../entities/Part';
 import { IMatterContactPoints } from "../Utils";
 import { ISolidHitsPlayer } from '../entities/IDynamics';
-import { config, ISpriteSpec } from '../config';
+import { config, ISpriteSpec, IDifficulty, IDifficultyWave } from '../config';
 import { HPBar } from '../UI/HPBar';
 
 interface IMoveKeys {
@@ -16,22 +16,6 @@ interface IMoveKeys {
     left: Phaser.Input.Keyboard.Key,
 }
 
-type IDifficulty = IDifficultyWave | IDifficultyEnding;
-
-interface IDifficultyWave {
-    wait: number;
-    desc?: string;
-    allowedEnemies: number;
-    enemyHP: number;
-    enemySpawnInterval: number;
-    end?: boolean;
-}
-
-interface IDifficultyEnding {
-    wait: number;
-    desc?: string;
-    end: boolean;
-}
 
 interface PlayerBullet extends Phaser.Physics.Matter.Sprite {
     onHitEnemy?: (enemy: Enemy, contactPoints: IMatterContactPoints) => void;
@@ -118,20 +102,7 @@ export class MainScene extends Phaser.Scene {
     private allowedEnemies: number = 1;
 
     private difficulty: number = 0;
-    private difficultyCurve: IDifficulty[] = [
-        { wait: 0, desc: 'init', allowedEnemies: 2, enemySpawnInterval: 1500, enemyHP: 6 },
-        { wait: 5000, desc: '', allowedEnemies: 3, enemySpawnInterval: 1300, enemyHP: 7 },
-        { wait: 15000, desc: '', allowedEnemies: 4, enemySpawnInterval: 1000, enemyHP: 8 },
-        { wait: 10000, desc: '', allowedEnemies: 5, enemySpawnInterval: 1000, enemyHP: 8 },
-        { wait: 8000, desc: '', allowedEnemies: 5, enemySpawnInterval: 1000, enemyHP: 9 },
-        { wait: 5000, desc: '', allowedEnemies: 7, enemySpawnInterval: 800, enemyHP: 11 },
-        { wait: 7000, desc: '', allowedEnemies: 9, enemySpawnInterval: 700, enemyHP: 15 },
-        { wait: 10000, desc: '', allowedEnemies: 12, enemySpawnInterval: 500, enemyHP: 15 },
-        { wait: 10000, desc: '', allowedEnemies: 12, enemySpawnInterval: 500, enemyHP: 17 },
-        { wait: 10000, desc: '', allowedEnemies: 15, enemySpawnInterval: 700, enemyHP: 19 },
-        { wait: 10000, desc: '', allowedEnemies: 15, enemySpawnInterval: 700, enemyHP: 19 },
-        { wait: 20000, desc: 'end', end: true },
-    ];
+    private difficultyCurve: IDifficulty[] = config.difficultyCurve;
 
     constructor() {
         super({
@@ -919,9 +890,6 @@ export class MainScene extends Phaser.Scene {
 
     }
 
-
-
-
     private registerCollisionEvents(): void {
         this.matter.world.on('collisionstart', (event: any, bodyA: any, bodyB: any) => {
             const { pairs } = event;
@@ -929,78 +897,58 @@ export class MainScene extends Phaser.Scene {
                 const bodyA: any = pair.bodyA;
                 const bodyB: any = pair.bodyB;
                 const activeContacts: any = pair.activeContacts;
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
+                console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
+                
+                this.checkPairGameObjectName('player_bullet', 'enemy', bodyA, bodyB, (a: any, b: any) => {
+                    (<PlayerBullet>a.gameObject).onHitEnemy(b.gameObject, activeContacts);
+                });
+                if (!(bodyA.gameObject && bodyB.gameObject)) return;
 
-                // player_bullet vs enemy
+                this.checkPairGameObjectName('enemy', 'player_part', bodyA, bodyB, (a: any, b: any) => {
+                    (<Enemy>a.gameObject).onHitPlayerPart(b.gameObject, activeContacts);
+                });
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                // console.log('collision', bodyA.gameObject.name, bodyB.gameObject.name);
-                if (bodyA.gameObject.name === 'player_bullet' && bodyB.gameObject.name === 'enemy') {
-                    (<PlayerBullet>bodyA.gameObject).onHitEnemy(bodyB.gameObject, activeContacts);
-                }
-                if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyB.gameObject.name === 'player_bullet' && bodyA.gameObject.name === 'enemy') {
-                    (<PlayerBullet>bodyB.gameObject).onHitEnemy(bodyA.gameObject, activeContacts);
-                }
 
-                // enemy vs player_part
+                this.checkPairGameObjectName('enemy', 'player', bodyA, bodyB, (a: any, b: any) => {
+                    (<Enemy>a.gameObject).onHitPlayer(b.gameObject, activeContacts);
+                });
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyA.gameObject.name === 'enemy' && bodyB.gameObject.name === 'player_part') {
-                    (<Enemy>bodyA.gameObject).onHitPlayerPart(bodyB.gameObject, activeContacts);
-                }
-                if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyB.gameObject.name === 'enemy' && bodyA.gameObject.name === 'player_part') {
-                    (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyA.gameObject, activeContacts);
-                }
 
-                // enemy vs player
+                this.checkPairGameObjectName('enemy_bullet', 'player', bodyA, bodyB, (a: any, b: any) => {
+                    (<Enemy>a.gameObject).onHitPlayer(b.gameObject, activeContacts);
+                });
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyA.gameObject.name === 'enemy' && bodyB.gameObject.name === 'player') {
-                    (<Enemy>bodyA.gameObject).onHitPlayer(bodyB.gameObject, activeContacts);
-                }
-                if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyB.gameObject.name === 'enemy' && bodyA.gameObject.name === 'player') {
-                    (<Enemy>bodyB.gameObject).onHitPlayer(bodyA.gameObject, activeContacts);
-                }
 
-                // enemy_bullet vs player
+                this.checkPairGameObjectName('enemy_bullet', 'player_part', bodyA, bodyB, (a: any, b: any) => {
+                    (<Enemy>a.gameObject).onHitPlayerPart(b.gameObject, activeContacts);
+                });
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyA.gameObject.name === 'enemy_bullet' && bodyB.gameObject.name === 'player') {
-                    (<Enemy>bodyA.gameObject).onHitPlayer(bodyB.gameObject, activeContacts);
-                }
-                if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyB.gameObject.name === 'enemy_bullet' && bodyA.gameObject.name === 'player') {
-                    (<Enemy>bodyB.gameObject).onHitPlayer(bodyA.gameObject, activeContacts);
-                }
 
-                // enemy_bullet vs player_part
+                this.checkPairGameObjectName('player', 'part', bodyA, bodyB, (a: any, b: any) => {
+                    (<Player>a.gameObject).onHitPart(a.gameObject, b.gameObject, activeContacts);
+                });
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyA.gameObject.name === 'enemy_bullet' && bodyB.gameObject.name === 'player_part') {
-                    (<Enemy>bodyA.gameObject).onHitPlayerPart(bodyB.gameObject, activeContacts);
-                }
-                if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyB.gameObject.name === 'enemy_bullet' && bodyA.gameObject.name === 'player_part') {
-                    (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyA.gameObject, activeContacts);
-                }
-                // player vs part
-                if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyA.gameObject.name === 'player' && bodyB.gameObject.name === 'part') {
-                    (<Player>bodyA.gameObject).onHitPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
-                }
-                if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyB.gameObject.name === 'player' && bodyA.gameObject.name === 'part') {
-                    (<Player>bodyB.gameObject).onHitPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
-                }
 
-                // player_part vs part
+                this.checkPairGameObjectName('player_part', 'part', bodyA, bodyB, (a: any, b: any) => {
+                    (<Player>a.gameObject).onHitPart(a.gameObject, b.gameObject, activeContacts);
+                });
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyA.gameObject.name === 'player_part' && bodyB.gameObject.name === 'part') {
-                    (<Player>bodyA.gameObject).onHitPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
-                }
-                if (!(bodyA.gameObject && bodyB.gameObject)) return;
-                if (bodyB.gameObject.name === 'player_part' && bodyA.gameObject.name === 'part') {
-                    (<Player>bodyB.gameObject).onHitPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
-                }
+
             });
         });
+    }
+
+    private checkPairGameObjectName(
+        nameA: string, nameB: string,
+        bodyA: any, bodyB: any,
+        matchFoundCallback: (a: any, b: any) => void
+    ): void {
+        if (bodyA.gameObject.name === nameA && bodyB.gameObject.name === nameB) {
+            matchFoundCallback(bodyA, bodyB);
+        } else if (bodyB.gameObject.name === nameA && bodyA.gameObject.name === nameB) {
+            matchFoundCallback(bodyB, bodyA);
+        }
     }
 
     private registerKeyboard(): void {

@@ -1,6 +1,25 @@
 export type ISpriteSpec = {
     key: string, frame: string
 }
+
+
+export type IDifficulty = IDifficultyWave | IDifficultyEnding;
+
+export interface IDifficultyWave {
+    wait: number;
+    desc?: string;
+    allowedEnemies: number;
+    enemyHP: number;
+    enemySpawnInterval: number;
+    end?: boolean;
+}
+
+export interface IDifficultyEnding {
+    wait: number;
+    desc?: string;
+    end: boolean;
+}
+
 export type IConfig = {
     player: {
         hp: number,
@@ -28,6 +47,7 @@ export type IConfig = {
         bulletSpeed: number,
         bowOutTime: number,
     },
+    difficultyCurve:IDifficulty[],
 }
 
 
