@@ -8,6 +8,7 @@ import { IMatterContactPoints } from "../Utils";
 import { ISolidHitsPlayer } from '../entities/IDynamics';
 import { config, ISpriteSpec, IDifficulty, IDifficultyWave } from '../config';
 import { HPBar } from '../UI/HPBar';
+import { GM } from '../GM';
 
 interface IMoveKeys {
     down: Phaser.Input.Keyboard.Key,
@@ -34,7 +35,7 @@ interface EnemyBullet extends Phaser.Physics.Matter.Sprite, ISolidHitsPlayer {
     bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
-export class MainScene extends Phaser.Scene {
+export class MainScene extends Phaser.Scene implements GM {
 
     // movement
     private drag: number = 0.2;

@@ -21,6 +21,7 @@ interface EnemyBullet extends Phaser.Physics.Matter.Sprite, ISolidHitsPlayer {
     bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
+// TODO: change GM to a class
 export interface GM extends Phaser.Scene {
     partList: Part[];
     enemyList: Enemy[];
