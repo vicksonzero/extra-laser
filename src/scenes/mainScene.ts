@@ -7,6 +7,7 @@ import { Part } from '../entities/Part';
 import { IMatterContactPoints } from "../Utils";
 import { ISolidHitsPlayer } from '../entities/IDynamics';
 import { config } from '../config';
+import { HPBar } from '../UI/HPBar';
 
 interface IMoveKeys {
     down: Phaser.Input.Keyboard.Key,
@@ -37,23 +38,6 @@ interface PlayerBullet extends Phaser.Physics.Matter.Sprite {
     bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
-// interface Part extends Phaser.GameObjects.Container {
-//     hp?: number;
-//     maxHP?: number;
-//     container?: PartContainer;
-//     partWing?: Phaser.GameObjects.GameObject;
-//     partGun?: Phaser.GameObjects.GameObject;
-//     partHP?: HPBar;
-//     takeDamage?: (amount: number) => void;
-//     onHitPart?: (parent: any, part: Part, contactPoints: IContactPoints) => void;
-//     destroyTimer?: Phaser.Time.TimerEvent;
-// }
-
-interface PartContainer extends Phaser.GameObjects.Container {
-
-}
-
-
 
 interface Effect extends Phaser.GameObjects.Sprite {
     bowOutEvent?: Phaser.Time.TimerEvent;
@@ -62,39 +46,13 @@ interface Star extends Phaser.Physics.Matter.Sprite {
     bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
-
-
-// interface Enemy extends Phaser.Physics.Matter.Sprite {
-//     hp?: number;
-//     maxHP?: number;
-//     partWing: Phaser.GameObjects.Sprite;
-//     partHP: Phaser.GameObjects.Graphics;
-//     takeDamage?: (amount: number) => void;
-//     onHitPlayerPart?: (enemy: any, playerPart: Part, contactPoints: IMatterContactPoints) => void;
-//     onHitPlayer?: (enemy: any, player: Player, contactPoints: IMatterContactPoints) => void;
-//     tintFill?: boolean;
-//     undoTintEvent?: Phaser.Time.TimerEvent;
-//     canShootEvent?: Phaser.Time.TimerEvent;
-//     bowOutEvent?: Phaser.Time.TimerEvent;
-// }
-
 interface EnemyBullet extends Phaser.Physics.Matter.Sprite, ISolidHitsPlayer {
     bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
-interface HPBar extends Phaser.GameObjects.Graphics {
-    barWidth?: number;
-    barHeight?: number;
-}
-
-
-
 export class MainScene extends Phaser.Scene {
 
     // movement
-    private topSpeed: number = 6;
-    private accel: number = 2.5;
-    private mass = 3000;
     private drag: number = 0.2;
     private playerBulletRapid = 150;
     private playerHP = 20;
@@ -184,7 +142,6 @@ export class MainScene extends Phaser.Scene {
             'onCanShoot',
             'onCanSpawnEnemy',
             'onCanSpawnStars',
-            'onPlayerHitPart',
             'onMetrics',
             'updateDifficulty',
         ]);
@@ -221,7 +178,7 @@ export class MainScene extends Phaser.Scene {
             .setScale(this.playerScale)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             ;
-        const playerPartHP = this.makeHPBar(0, 20, 100, 4);
+        const playerPartHP = new HPBar(this, 0, 20, 100, 4);
 
 
         const playerPartContainer = <Player>this.add.existing(new Player(this, this));
@@ -282,16 +239,16 @@ export class MainScene extends Phaser.Scene {
         if (!this.gameIsOver) {
             // Enables movement of player with WASD keys
             if (this.moveKeys.up.isDown) {
-                this.player.applyForce(new Phaser.Math.Vector2(0, -this.accel));
+                this.player.applyForce(new Phaser.Math.Vector2(0, -config.player.accel));
             }
             if (this.moveKeys.down.isDown) {
-                this.player.applyForce(new Phaser.Math.Vector2(0, this.accel));
+                this.player.applyForce(new Phaser.Math.Vector2(0, config.player.accel));
             }
             if (this.moveKeys.left.isDown) {
-                this.player.applyForce(new Phaser.Math.Vector2(-this.accel, 0));
+                this.player.applyForce(new Phaser.Math.Vector2(-config.player.accel, 0));
             }
             if (this.moveKeys.right.isDown) {
-                this.player.applyForce(new Phaser.Math.Vector2(this.accel, 0));
+                this.player.applyForce(new Phaser.Math.Vector2(config.player.accel, 0));
             }
 
             if (this.player.followingMouse) {
@@ -310,7 +267,7 @@ export class MainScene extends Phaser.Scene {
                     // this.matter.moveTo(this.plane, this.plane.mouseTarget.x, this.plane.mouseTarget.y, this.topSpeed);
                     const playerPos = new Phaser.Math.Vector2(this.player.x, this.player.y);
                     const direction = new Phaser.Math.Vector2(dest.x, dest.y).subtract(playerPos);
-                    direction.scale(this.topSpeed / direction.length());
+                    direction.scale(config.player.topSpeed / direction.length());
                     this.player.setVelocity(direction.x, direction.y);
                 } else {
                     // console.log('snap');
@@ -455,8 +412,7 @@ export class MainScene extends Phaser.Scene {
             .setTint(0xCCCCCC)
             ;
 
-        const partHP = this.makeHPBar(0, 20, 30, 4)
-            ;
+        const partHP = new HPBar(this, 0, 20, 30, 4)
 
         const enemy: Enemy = this.add.existing(new Enemy(this, this)) as Enemy;
         this.matter.add.gameObject(enemy, { shape: { type: 'rectangle', width: 40, height: 30 } });
@@ -469,7 +425,7 @@ export class MainScene extends Phaser.Scene {
         this.enemyList.push(enemy);
 
         enemy.setBowOutEvent(config.enemy.bowOutTime * 1000);
-        
+
         enemy.setVelocity(0, 2);
         enemy.startShooting();
     }
@@ -647,7 +603,7 @@ export class MainScene extends Phaser.Scene {
             .setScale(this.wingManScale * 1.5)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             ;
-        const partHP = this.makeHPBar(0, 0, this.partRadius * 1.2, 4);
+        const partHP = new HPBar(this, 0, 0, this.partRadius * 1.2, 4);
 
         const part: Part = this.add.existing(new Part(this, this)) as Part;
         this.matter.add.gameObject(part, { shape: { type: 'circle', radius: this.partRadius } });
@@ -671,33 +627,6 @@ export class MainScene extends Phaser.Scene {
             );
             part.setVelocity(velocity.x, velocity.y);
         }
-
-    }
-
-    private makeHPBar(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics {
-        const bar: HPBar = this.add.graphics()
-        bar
-            .setX(x)
-            .setY(y)
-            ;
-        bar.barWidth = width;
-        bar.barHeight = height;
-        return bar;
-    }
-
-    public updateHPBar(bar: HPBar, hp: number, maxHP: number, en: number, maxEN: number) {
-        bar.clear();
-        const width = bar.barWidth;
-        const height = bar.barHeight;
-
-        const hue = (hp / maxHP * 120 / 360);
-        const color = Phaser.Display.Color.HSLToColor(hue, 1, 0.5).color;
-
-        bar.lineStyle(1, color, 1);
-        bar.strokeRect(-width / 2, -height / 2, width, height);
-
-        bar.fillStyle(color, 1);
-        bar.fillRect(-width / 2, -height / 2, hp / maxHP * width, height);
     }
 
     public makeSpark(
@@ -910,19 +839,19 @@ export class MainScene extends Phaser.Scene {
     /**
      * @todo change any back to Phaser.Physics.Matter.*
      */
-    public attachPart(parent: any, part: any, dx: number, dy: number) {
+    public attachPart(parent: any, part: Part, dx: number, dy: number) {
 
         part.setVelocity(0);
         part.setName('player_part').setAlpha(1);
         part
             .setCircle(15, {})
             .setFixedRotation()
-            .setMass(this.mass / 400)
+            .setMass(config.playerPart.mass / 400)
             .setX(parent.x + dx)
             .setY(parent.y + dy)
             ;
-        part.hp = this.partHP;
-        part.maxHP = this.partHP;
+        part.hp = config.playerPart.hp;
+        part.maxHP = config.playerPart.hp;
         part.onHitPart = this.onPlayerHitPart;
         part
             .setCollisionCategory(collisionCategory.PLAYER_PART)
@@ -934,7 +863,7 @@ export class MainScene extends Phaser.Scene {
 
             const wing = part.partWing;
             wing.setTint(0xff0000);
-            this.updateHPBar(part.partHP, part.hp, part.maxHP, 0, 0);
+            part.partHP.updateHPBar(part.hp, part.maxHP, 0, 0);
 
             part.undoTintEvent = this.time.addEvent({
                 delay: 200, loop: false, callback: () => {
@@ -979,7 +908,7 @@ export class MainScene extends Phaser.Scene {
 
         part
             .setName('part')
-            .setMass(this.mass)
+            .setMass(config.playerPart.mass)
             .setFrictionAir(0)
             .setFrictionStatic(0)
             .setBounce(1)
@@ -997,7 +926,7 @@ export class MainScene extends Phaser.Scene {
     /**
      * @todo change any back to Phaser.Physics.Matter.*
      */
-    private onPlayerHitPart(parent: any, part: Part, contactPoints: IMatterContactPoints) {
+    private onPlayerHitPart = (parent: any, part: Part, contactPoints: IMatterContactPoints) => {
         // debugger;
         const displacement = new Phaser.Math.Vector2(part.x, part.y).subtract(
             new Phaser.Math.Vector2(parent.x, parent.y)

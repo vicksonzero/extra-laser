@@ -3,6 +3,8 @@ config:
     hp: 20
     mass: 750
     drag: 0.2
+    topSpeed: 6
+    accel: 0.8
   playerPart:
     hp: 20
     mass: 3000

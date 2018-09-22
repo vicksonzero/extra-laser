@@ -6,10 +6,7 @@ import MatterContainer from "./MatterContainer";
 import { IMatterContactPoints } from "../Utils";
 
 import { config } from '../config';
-
-interface HPBar extends Phaser.GameObjects.GameObject {
-
-}
+import { HPBar } from "../UI/HPBar";
 
 export class Part extends MatterContainer implements ICombatEntity, IPartReceiver {
     public gm: GM;
@@ -42,12 +39,11 @@ export class Part extends MatterContainer implements ICombatEntity, IPartReceive
     }
 
     initPhysics(): this {
-        const { playerPart } = config;
         this
-            .setMass(playerPart.mass)
-            .setFrictionAir(playerPart.drag)
-            .setFrictionStatic(playerPart.drag)
-            .setBounce(playerPart.bounce)
+            .setMass(config.playerPart.mass)
+            .setFrictionAir(config.playerPart.drag)
+            .setFrictionStatic(config.playerPart.drag)
+            .setBounce(config.playerPart.bounce)
             .setFixedRotation()
             .setCollisionCategory(collisionCategory.PART)
             .setCollidesWith(collisionCategory.WORLD | collisionCategory.PLAYER | collisionCategory.PART | collisionCategory.PLAYER_PART)
@@ -73,7 +69,7 @@ export class Part extends MatterContainer implements ICombatEntity, IPartReceive
 
         const wing = this.partWing;
         wing.setTint(0xff0000);
-        this.gm.updateHPBar(this.partHP, this.hp, this.maxHP, 0, 0);
+        this.partHP.updateHPBar(this.hp, this.maxHP, 0, 0);
 
         this.undoTintEvent = this.gm.time.addEvent({
             delay: 200, loop: false, callback: () => {

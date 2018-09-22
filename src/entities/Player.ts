@@ -9,10 +9,8 @@ import { applyMixins } from '../Utils';
 import { Part } from './Part';
 
 import { config } from '../config';
+import { HPBar } from '../UI/HPBar';
 
-interface HPBar extends Phaser.GameObjects.GameObject {
-
-}
 
 export class Player extends MatterContainer implements ICombatEntity, IPartReceiver {
     gm: GM = null;
@@ -60,12 +58,12 @@ export class Player extends MatterContainer implements ICombatEntity, IPartRecei
         return this;
     }
 
-    initAttachments(playerPartWing: Phaser.GameObjects.Sprite, playerPartHP: HPBar): this {
+    initAttachments(partWing: Phaser.GameObjects.Sprite, partHP: HPBar): this {
 
-        this.add(playerPartWing);
-        this.partWing = playerPartWing;
-        this.add(playerPartHP);
-        this.partHP = playerPartHP;
+        this.add(partWing);
+        this.partWing = partWing;
+        this.add(partHP);
+        this.partHP = partHP;
         return this;
     }
 
@@ -75,7 +73,7 @@ export class Player extends MatterContainer implements ICombatEntity, IPartRecei
 
         const wing = this.partWing;
         wing.setTint(0xff0000);
-        this.gm.updateHPBar(this.partHP, this.hp, this.maxHP, 0, 0);
+        this.partHP.updateHPBar(this.hp, this.maxHP, 0, 0);
 
         this.undoTintEvent = this.gm.time.addEvent({
             delay: 200, loop: false, callback: () => {

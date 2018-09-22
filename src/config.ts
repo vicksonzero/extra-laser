@@ -4,13 +4,15 @@ export type IConfig = {
         hp: number,
         mass: number,
         drag: number,
+        topSpeed: number,
+        accel: number,
     },
     playerPart: {
         hp: number,
         mass: number,
         drag: number,
         bounce: number,
-    }
+    },
     enemy: {
         hp: number,
         mass: number,

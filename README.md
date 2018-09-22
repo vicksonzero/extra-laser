@@ -25,7 +25,7 @@ npm install
 npm run build
 ```
 
-Entry point is `src/boilerplate/game.ts`
+Entry point is `src/game.ts`
 
 # Credits
 

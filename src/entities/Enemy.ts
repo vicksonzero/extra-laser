@@ -9,11 +9,8 @@ import { collisionCategory } from "./collisionCategory";
 import { IMatterContactPoints } from "../Utils";
 import { Player } from "./Player";
 import { Part } from "./Part";
+import { HPBar } from "../UI/HPBar";
 
-
-interface HPBar extends Phaser.GameObjects.GameObject {
-
-}
 
 export class Enemy extends MatterContainer implements ICombatEntity, ISolidHitsPlayer, IAaa {
     gm: GM = null;
@@ -55,12 +52,12 @@ export class Enemy extends MatterContainer implements ICombatEntity, ISolidHitsP
         return this;
     }
 
-    initAttachments(playerPartWing: Phaser.GameObjects.Sprite, playerPartHP: HPBar): this {
+    initAttachments(partWing: Phaser.GameObjects.Sprite, partHP: HPBar): this {
 
-        this.add(playerPartWing);
-        this.partWing = playerPartWing;
-        this.add(playerPartHP);
-        this.partHP = playerPartHP;
+        this.add(partWing);
+        this.partWing = partWing;
+        this.add(partHP);
+        this.partHP = partHP;
         return this;
     }
 
@@ -72,7 +69,7 @@ export class Enemy extends MatterContainer implements ICombatEntity, ISolidHitsP
     takeDamage = (amount: number) => {
         this.hp -= amount;
         this.partWing.setTint(0xffffFF);
-        this.gm.updateHPBar(this.partHP, this.hp, this.maxHP, 0, 0);
+        this.partHP.updateHPBar(this.hp, this.maxHP, 0, 0);
 
         this.undoTintEvent = this.gm.time.addEvent({
             delay: 10, loop: false, callback: () => {
