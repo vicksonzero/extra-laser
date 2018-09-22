@@ -8,3 +8,11 @@ config:
     mass: 3000
     drag: 0
     bounce: 1
+  enemy:
+    hp: 6
+    mass: 3000
+    drag: 0
+    shootRate: 1000
+    bulletSpeed: 3.5
+    bowOutTime: 20 # seconds
+    # spawnInterval: 1000

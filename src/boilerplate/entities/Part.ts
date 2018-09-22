@@ -1,6 +1,6 @@
 import { IPartReceiver } from "./IPartReceiver";
 import { GM } from "../GM";
-import { ICombatEntity } from "./ICombatEntity";
+import { ICombatEntity } from "./IDynamics";
 import { collisionCategory } from './collisionCategory';
 import MatterContainer from "./MatterContainer";
 import { IMatterContactPoints } from "../Utils";

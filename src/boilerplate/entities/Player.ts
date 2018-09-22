@@ -1,5 +1,5 @@
 import MatterContainer from './MatterContainer';
-import { ICombatEntity } from './ICombatEntity';
+import { ICombatEntity } from './IDynamics';
 
 import { collisionCategory } from './collisionCategory';
 

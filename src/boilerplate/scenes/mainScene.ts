@@ -2,8 +2,11 @@ import { bindAll } from 'lodash';
 
 import { collisionCategory } from '../entities/collisionCategory';
 import { Player } from '../entities/Player';
+import { Enemy } from '../entities/Enemy';
 import { Part } from '../entities/Part';
 import { IMatterContactPoints } from "../Utils";
+import { ISolidHitsPlayer } from '../entities/IDynamics';
+import { config } from '../config';
 
 interface IMoveKeys {
     down: Phaser.Input.Keyboard.Key,
@@ -61,23 +64,21 @@ interface Star extends Phaser.Physics.Matter.Sprite {
 
 
 
-interface Enemy extends Phaser.Physics.Matter.Sprite {
-    hp?: number;
-    maxHP?: number;
-    partWing: Phaser.GameObjects.Sprite;
-    partHP: Phaser.GameObjects.Graphics;
-    takeDamage?: (amount: number) => void;
-    onHitPlayerPart?: (enemy: any, playerPart: Part, contactPoints: IMatterContactPoints) => void;
-    onHitPlayer?: (enemy: any, player: Player, contactPoints: IMatterContactPoints) => void;
-    tintFill?: boolean;
-    undoTintEvent?: Phaser.Time.TimerEvent;
-    canShootEvent?: Phaser.Time.TimerEvent;
-    bowOutEvent?: Phaser.Time.TimerEvent;
-}
+// interface Enemy extends Phaser.Physics.Matter.Sprite {
+//     hp?: number;
+//     maxHP?: number;
+//     partWing: Phaser.GameObjects.Sprite;
+//     partHP: Phaser.GameObjects.Graphics;
+//     takeDamage?: (amount: number) => void;
+//     onHitPlayerPart?: (enemy: any, playerPart: Part, contactPoints: IMatterContactPoints) => void;
+//     onHitPlayer?: (enemy: any, player: Player, contactPoints: IMatterContactPoints) => void;
+//     tintFill?: boolean;
+//     undoTintEvent?: Phaser.Time.TimerEvent;
+//     canShootEvent?: Phaser.Time.TimerEvent;
+//     bowOutEvent?: Phaser.Time.TimerEvent;
+// }
 
-interface EnemyBullet extends Phaser.Physics.Matter.Sprite {
-    onHitPlayerPart?: (bullet: any, playerPart: Part, contactPoints: IMatterContactPoints) => void;
-    onHitPlayer?: (bullet: any, player: Player, contactPoints: IMatterContactPoints) => void;
+interface EnemyBullet extends Phaser.Physics.Matter.Sprite, ISolidHitsPlayer {
     bowOutEvent?: Phaser.Time.TimerEvent;
 }
 
@@ -135,9 +136,9 @@ export class MainScene extends Phaser.Scene {
     private debugLabel: Phaser.GameObjects.Text;
     private debugListLabel: Phaser.GameObjects.Text;
     private titleTween: Phaser.Tweens.Tween;
-    private bulletList: PlayerBullet[] = [];
+    public bulletList: PlayerBullet[] = [];
     public partList: Part[] = [];
-    private enemyList: Enemy[] = [];
+    public enemyList: Enemy[] = [];
     private constraintList: MatterJS.Constraint[] = [];
 
     // timers
@@ -155,7 +156,7 @@ export class MainScene extends Phaser.Scene {
     private totalKill = 0;
     private highestPartCount = 0;
     private killCount: number[] = [0];
-    private crashDamage: number = 0;
+    public crashDamage: number = 0;
     private allowedEnemies: number = 1;
 
     private difficulty: number = 0;
@@ -406,15 +407,18 @@ export class MainScene extends Phaser.Scene {
     }
 
 
-    private onEnemyCanShoot(enemy: Enemy): void {
-        if (this.gameIsOver) return;
-        const bullet = this.makeEnemyBullet('enemy_bullet',
-            enemy.x, enemy.y + 20,
-            "spaceshooter", 'laserRed05',
-            this.enemyBulletSpeed, 180
-        );
+    public onEnemyKilled(enemy: Enemy) {
+        this.killCount[this.killCount.length - 1]++;
+        this.totalKill++;
 
-        this.bulletList.push(bullet);
+
+        this.score += this.powerLevel * enemy.maxHP;
+        if (Math.random() <= this.partSpawnChance) {
+            this.makePart(
+                enemy.x, enemy.y,
+                this.partScatterLife, true
+            );
+        }
     }
 
     private spawnStar(x: number, y: number) {
@@ -444,112 +448,30 @@ export class MainScene extends Phaser.Scene {
 
     private spawnEnemy(x: number, y: number) {
 
-        const partContainer = this.add.container(x, y, []);
-        const partWing = this.add.sprite(0, 0, 'spaceshooterExt', 'spaceShips_002');
-        const partHP = this.makeHPBar(0, 20, 30, 4);
-
-        partContainer.add(partWing
+        const partWing = this.add.sprite(0, 0, 'spaceshooterExt', 'spaceShips_002')
             .setOrigin(0.5, 0.5)
             .setScale(this.wingManScale)
             .setScaleMode(Phaser.ScaleModes.NEAREST)
             .setTint(0xCCCCCC)
-        );
+            ;
 
-        partContainer.add(partHP
-            //
-        );
+        const partHP = this.makeHPBar(0, 20, 30, 4)
+            ;
 
-        const enemy: Enemy = <Enemy>this.matter.add.gameObject(partContainer, { shape: { type: 'rectangle', width: 40, height: 30 } });
-
-        enemy.hp = this.enemyHP;
-        enemy.maxHP = this.enemyHP;
-        enemy.partWing = partWing;
-        enemy.partHP = partHP;
+        const enemy: Enemy = this.add.existing(new Enemy(this, this)) as Enemy;
+        this.matter.add.gameObject(enemy, { shape: { type: 'rectangle', width: 40, height: 30 } });
+        enemy
+            .initPhysics()
+            .initAttachments(partWing, partHP)
+            .init(x, y)
+            ;
 
         this.enemyList.push(enemy);
 
-
-
-        enemy.setName('enemy');
-        enemy
-            .setMass(this.mass)
-            .setFrictionAir(0)
-            .setFrictionStatic(0)
-            .setFixedRotation()
-            .setCollisionCategory(collisionCategory.ENEMY)
-            .setCollidesWith(collisionCategory.PLAYER_BULLET | collisionCategory.PLAYER | collisionCategory.PLAYER_PART)
-            ;
-        // makeHPBar later
-
+        enemy.setBowOutEvent(config.enemy.bowOutTime * 1000);
+        
         enemy.setVelocity(0, 2);
-
-        enemy.canShootEvent = this.time.addEvent({ delay: this.enemyShootRate, callback: () => this.onEnemyCanShoot(enemy), loop: true });
-
-        enemy.bowOutEvent = this.time.addEvent({
-            delay: 20 * 1000, loop: false, callback: () => {
-                enemy.canShootEvent.destroy();
-                enemy.bowOutEvent.destroy();
-                this.enemyList.splice(this.enemyList.indexOf(enemy), 1);
-                enemy.destroy();
-            }
-        });
-        enemy.takeDamage = (amount: number) => {
-            enemy.hp -= amount;
-            enemy.partWing.setTint(0xffffFF);
-            this.updateHPBar(enemy.partHP, enemy.hp, enemy.maxHP, 0, 0);
-
-            enemy.undoTintEvent = this.time.addEvent({
-                delay: 10, loop: false, callback: () => {
-                    enemy.partWing.setTint(0xCCCCCC);
-                }
-            });
-
-            if (enemy.hp <= 0) {
-                this.score += this.powerLevel * enemy.maxHP;
-                if (enemy.undoTintEvent) enemy.undoTintEvent.destroy();
-                this.makeExplosion1(enemy.x, enemy.y);
-                if (Math.random() <= this.partSpawnChance) {
-                    this.makePart(
-                        enemy.x, enemy.y,
-                        this.partScatterLife, true
-                    );
-                }
-                enemy.bowOutEvent.destroy();
-                enemy.canShootEvent.destroy();
-                this.enemyList.splice(this.enemyList.indexOf(enemy), 1);
-                this.killCount[this.killCount.length - 1]++;
-                this.totalKill++;
-                enemy.destroy();
-                this.cameras.main.shake(50, 0.02, false);
-            }
-        }
-
-        enemy.onHitPlayerPart = (enemy: any, playerPart: Part, contactPoints: IMatterContactPoints) => {
-            this.displayDamage(playerPart.x, playerPart.y, '-3', 3000);
-            playerPart.takeDamage(3);
-
-            this.displayDamage(enemy.x, enemy.y, '-10', 3000);
-            this.crashDamage += 10;
-            if (enemy.takeDamage) enemy.takeDamage(10);
-
-            contactPoints.forEach((contactPoint) => {
-                this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
-            });
-        };
-        enemy.onHitPlayer = (enemy: any, player: Player, contactPoints: IMatterContactPoints) => {
-            this.displayDamage(player.x, player.y, '-6', 3000);
-            player.takeDamage(6);
-
-            this.displayDamage(enemy.x, enemy.y, '-10', 3000);
-            this.crashDamage += 10;
-            if (enemy.takeDamage) enemy.takeDamage(10);
-
-            contactPoints.forEach((contactPoint) => {
-                this.makeSpark(contactPoint.vertex.x, contactPoint.vertex.y)
-            });
-        };
-
-
+        enemy.startShooting();
     }
 
     private makeBullet(
@@ -609,7 +531,7 @@ export class MainScene extends Phaser.Scene {
     }
 
 
-    private makeEnemyBullet(
+    public makeEnemyBullet(
         name: string,
         x: number, y: number,
         key: string, frameName: string,
@@ -654,7 +576,7 @@ export class MainScene extends Phaser.Scene {
             bullet.destroy();
         }
 
-        bullet.onHitPlayer = (bullet: EnemyBullet, player: Player, contactPoints: IMatterContactPoints) => {
+        bullet.onHitPlayer = (player: Player, contactPoints: IMatterContactPoints) => {
             this.displayDamage(player.x, player.y, '-3', 3000);
             if (player.takeDamage) player.takeDamage(3);
             contactPoints.forEach((contactPoint) => {
@@ -664,7 +586,7 @@ export class MainScene extends Phaser.Scene {
         }
 
 
-        bullet.onHitPlayerPart = (bullet: EnemyBullet, part: Part, contactPoints: IMatterContactPoints) => {
+        bullet.onHitPlayerPart = (part: Part, contactPoints: IMatterContactPoints) => {
             this.displayDamage(part.x, part.y, '-2', 3000);
             if (part.takeDamage) part.takeDamage(2);
             contactPoints.forEach((contactPoint) => {
@@ -778,7 +700,7 @@ export class MainScene extends Phaser.Scene {
         bar.fillRect(-width / 2, -height / 2, hp / maxHP * width, height);
     }
 
-    private makeSpark(
+    public makeSpark(
         x: number, y: number,
     ): Effect {
         const spark: Effect = this.add.sprite(
@@ -810,7 +732,7 @@ export class MainScene extends Phaser.Scene {
     }
 
 
-    private makeExplosion1(
+    public makeExplosion1(
         x: number, y: number,
     ): Effect {
         const explosion: Effect = this.add.sprite(
@@ -965,7 +887,7 @@ export class MainScene extends Phaser.Scene {
         });
     }
 
-    private displayDamage(x: number, y: number, msg: string, duration: number) {
+    public displayDamage(x: number, y: number, msg: string, duration: number) {
         const toast = this.add.text(
             x, y,
             msg,
@@ -1108,41 +1030,41 @@ export class MainScene extends Phaser.Scene {
                 // enemy vs player_part
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'enemy' && bodyB.gameObject.name === 'player_part') {
-                    (<Enemy>bodyA.gameObject).onHitPlayerPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
+                    (<Enemy>bodyA.gameObject).onHitPlayerPart(bodyB.gameObject, activeContacts);
                 }
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyB.gameObject.name === 'enemy' && bodyA.gameObject.name === 'player_part') {
-                    (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
+                    (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyA.gameObject, activeContacts);
                 }
 
                 // enemy vs player
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'enemy' && bodyB.gameObject.name === 'player') {
-                    (<Enemy>bodyA.gameObject).onHitPlayer(bodyA.gameObject, bodyB.gameObject, activeContacts);
+                    (<Enemy>bodyA.gameObject).onHitPlayer(bodyB.gameObject, activeContacts);
                 }
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyB.gameObject.name === 'enemy' && bodyA.gameObject.name === 'player') {
-                    (<Enemy>bodyB.gameObject).onHitPlayer(bodyB.gameObject, bodyA.gameObject, activeContacts);
+                    (<Enemy>bodyB.gameObject).onHitPlayer(bodyA.gameObject, activeContacts);
                 }
 
                 // enemy_bullet vs player
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'enemy_bullet' && bodyB.gameObject.name === 'player') {
-                    (<Enemy>bodyA.gameObject).onHitPlayer(bodyA.gameObject, bodyB.gameObject, activeContacts);
+                    (<Enemy>bodyA.gameObject).onHitPlayer(bodyB.gameObject, activeContacts);
                 }
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyB.gameObject.name === 'enemy_bullet' && bodyA.gameObject.name === 'player') {
-                    (<Enemy>bodyB.gameObject).onHitPlayer(bodyB.gameObject, bodyA.gameObject, activeContacts);
+                    (<Enemy>bodyB.gameObject).onHitPlayer(bodyA.gameObject, activeContacts);
                 }
 
                 // enemy_bullet vs player_part
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyA.gameObject.name === 'enemy_bullet' && bodyB.gameObject.name === 'player_part') {
-                    (<Enemy>bodyA.gameObject).onHitPlayerPart(bodyA.gameObject, bodyB.gameObject, activeContacts);
+                    (<Enemy>bodyA.gameObject).onHitPlayerPart(bodyB.gameObject, activeContacts);
                 }
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
                 if (bodyB.gameObject.name === 'enemy_bullet' && bodyA.gameObject.name === 'player_part') {
-                    (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyB.gameObject, bodyA.gameObject, activeContacts);
+                    (<Enemy>bodyB.gameObject).onHitPlayerPart(bodyA.gameObject, activeContacts);
                 }
                 // player vs part
                 if (!(bodyA.gameObject && bodyB.gameObject)) return;
